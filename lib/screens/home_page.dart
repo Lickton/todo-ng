@@ -18,6 +18,8 @@ class Task {
     this.time,
     this.date,
     this.hasNotification = false,
+    this.reminderTime,
+    this.useSystemAlarm = false,
     this.repeatRule,
     this.completed = false,
     this.actions,
@@ -29,13 +31,18 @@ class Task {
   String? time; // e.g., "11:30 AM"
   String? date; // e.g., "26/11/24"
   bool hasNotification;
+  String? reminderTime;
+  bool useSystemAlarm;
   String? repeatRule; // e.g., "Daily", "Weekly", "Monthly", "Weekly:[1,2,4]"
   bool completed;
   List<ActionItem>? actions;
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.refreshTrigger = 0});
+
+  final int refreshTrigger;
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -75,6 +82,8 @@ class _HomePageState extends State<HomePage> {
         final r = (t.repeatRule ?? '').trim();
         if (r.isEmpty) return false;
         if (_fltRepeat == 'Weekly') return r.startsWith('Weekly');
+        if (_fltRepeat == 'Monthly') return r.startsWith('Monthly');
+        if (_fltRepeat == 'Yearly') return r.startsWith('Yearly');
         return r == _fltRepeat;
       });
     }
@@ -103,6 +112,14 @@ class _HomePageState extends State<HomePage> {
     _init(); // initial DB load
   }
 
+  @override
+  void didUpdateWidget(HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshTrigger != oldWidget.refreshTrigger) {
+      _load();
+    }
+  }
+
   Future<void> _init() async {
     // await TaskDao.seedDemo(); // optional first-run seeding
     await _load();
@@ -118,6 +135,8 @@ class _HomePageState extends State<HomePage> {
       time: e.time,
       date: e.date,
       hasNotification: e.hasNotification,
+      reminderTime: e.reminderTime,
+      useSystemAlarm: e.useSystemAlarm,
       repeatRule: e.repeatRule,
       completed: e.completed,
       actions: e.actions,
@@ -140,11 +159,6 @@ class _HomePageState extends State<HomePage> {
   Future<void> _delete(Task t) async {
     await TaskRepository().delete(t.id);
     await _load();
-  }
-
-  void _openSettings() {
-    // Ensure the route name matches your MaterialApp routes
-    Navigator.of(context).pushNamed('settings');
   }
 
   double verticalPadding(BuildContext context) =>
@@ -275,6 +289,8 @@ class _HomePageState extends State<HomePage> {
                                   () => setSheetState(() => _fltRepeat = 'Weekly')),
                           chip(AppLocalizations.of(context)!.monthly, _fltRepeat == 'Monthly',
                                   () => setSheetState(() => _fltRepeat = 'Monthly')),
+                          chip(AppLocalizations.of(context)!.yearly, _fltRepeat == 'Yearly',
+                                  () => setSheetState(() => _fltRepeat = 'Yearly')),
                           chip(AppLocalizations.of(context)!.noRepeat, _fltRepeat == null,
                                   () => setSheetState(() => _fltRepeat = null)),
                         ],
@@ -363,22 +379,7 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Logo + Settings
-                  Row(
-                    children: [
-                      SvgPicture.asset('assets/trans_logo.svg', height: 28),
-                      const Spacer(),
-                      IconButton(
-                        iconSize: 28,
-                        splashRadius: 28,
-                        tooltip: AppLocalizations.of(context)!.settings,
-                        onPressed: _openSettings,
-                        icon: const Icon(Icons.menu, color: Colors.black87),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Row 2: Today + Filter
+                  // Today + Filter
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
@@ -453,16 +454,6 @@ class _HomePageState extends State<HomePage> {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final saved = await Navigator.pushNamed(context, 'add_task');
-          if (saved == true) await _load();
-        },
-        backgroundColor: Colors.black,
-        shape: const CircleBorder(),
-        elevation: 3,
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
       ),
     );
   }

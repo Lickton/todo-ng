@@ -10,6 +10,8 @@ class TaskEntity {
     this.time,
     this.date,
     this.hasNotification = false,
+    this.reminderTime,
+    this.useSystemAlarm = false,
     this.repeatRule,
     this.completed = false,
     this.createdAt,
@@ -23,6 +25,10 @@ class TaskEntity {
   String? time; // "11:30 AM"
   String? date; // "26/11/24"
   bool hasNotification;
+  /// 提醒时间：offset:5(提前5分钟)、offset:0(准时)、custom:dd/MM/yy h:mm a(自定义)、或 dd/MM/yy h:mm a(无任务时间时的绝对时间)
+  String? reminderTime;
+  /// 是否同时在系统闹钟中添加提醒（仅 Android）
+  bool useSystemAlarm;
   String? repeatRule; // e.g., "Weekly"
   bool completed;
   String? createdAt;
@@ -72,6 +78,8 @@ class TaskEntity {
       time: m['time'] as String?,
       date: m['date'] as String?,
       hasNotification: (m['has_notification'] as int? ?? 0) == 1,
+      reminderTime: m['reminder_time'] as String?,
+      useSystemAlarm: (m['use_system_alarm'] as int? ?? 0) == 1,
       repeatRule: m['repeat_rule'] as String?,
       completed: (m['completed'] as int? ?? 0) == 1,
       createdAt: m['created_at'] as String?,
@@ -92,6 +100,8 @@ class TaskEntity {
       'time': time,
       'date': date,
       'has_notification': hasNotification ? 1 : 0,
+      'reminder_time': reminderTime,
+      'use_system_alarm': useSystemAlarm ? 1 : 0,
       'repeat_rule': repeatRule,
       'completed': completed ? 1 : 0,
       'created_at': createdAt,
@@ -107,6 +117,8 @@ class TaskEntity {
     String? time,
     String? date,
     bool? hasNotification,
+    String? reminderTime,
+    bool? useSystemAlarm,
     String? repeatRule,
     bool? completed,
     String? createdAt,
@@ -120,6 +132,8 @@ class TaskEntity {
       time: time ?? this.time,
       date: date ?? this.date,
       hasNotification: hasNotification ?? this.hasNotification,
+      reminderTime: reminderTime ?? this.reminderTime,
+      useSystemAlarm: useSystemAlarm ?? this.useSystemAlarm,
       repeatRule: repeatRule ?? this.repeatRule,
       completed: completed ?? this.completed,
       createdAt: createdAt ?? this.createdAt,

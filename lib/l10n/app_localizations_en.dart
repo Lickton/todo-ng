@@ -91,6 +91,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get today => 'Today';
 
   @override
+  String get calendar => 'Calendar';
+
+  @override
   String get filter => 'Filter';
 
   @override
@@ -104,6 +107,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get setTime => 'Set time';
+
+  @override
+  String get time => 'Time';
 
   @override
   String get dateAndTime => 'Date & Time';
@@ -133,7 +139,31 @@ class AppLocalizationsEn extends AppLocalizations {
   String get monthly => 'Monthly';
 
   @override
+  String get yearly => 'Yearly';
+
+  @override
   String get noRepeat => 'No repeat';
+
+  @override
+  String get mondayShort => 'Mon';
+
+  @override
+  String get tuesdayShort => 'Tue';
+
+  @override
+  String get wednesdayShort => 'Wed';
+
+  @override
+  String get thursdayShort => 'Thu';
+
+  @override
+  String get fridayShort => 'Fri';
+
+  @override
+  String get saturdayShort => 'Sat';
+
+  @override
+  String get sundayShort => 'Sun';
 
   @override
   String get reminders => 'Reminders';
@@ -336,4 +366,97 @@ class AppLocalizationsEn extends AppLocalizations {
   String versionLabel(String version) {
     return 'Version $version';
   }
+
+  @override
+  String get reminder => 'Reminder';
+
+  @override
+  String get reminderEnabled => 'Reminder enabled';
+
+  @override
+  String get reminderTime => 'Reminder time';
+
+  @override
+  String minutesBefore(int minutes) {
+    return '$minutes min before';
+  }
+
+  @override
+  String get onTime => 'On time';
+
+  @override
+  String get customTime => 'Custom time...';
+
+  @override
+  String get tapToSetReminderTime => 'Tap to set reminder time';
+
+  @override
+  String get modify => 'Modify';
+
+  @override
+  String get set => 'Set';
+
+  @override
+  String get timeNotSet => 'Not set';
+
+  @override
+  String get quickOptions => 'Quick options';
+
+  @override
+  String todayAt(String time) {
+    return 'Today $time';
+  }
+
+  @override
+  String tomorrowAt(String time) {
+    return 'Tomorrow $time';
+  }
+
+  @override
+  String get overdue => 'Overdue';
+
+  @override
+  String get reschedule => 'Reschedule';
+
+  @override
+  String get noTasks => 'No tasks';
+
+  @override
+  String get tomorrow => 'Tomorrow';
+
+  @override
+  String get tapToAddTask => 'Tap + to add a task';
+
+  @override
+  String get thisWeekend => 'This weekend';
+
+  @override
+  String get customDate => 'Custom date';
+
+  @override
+  String get goToToday => 'Go to today';
+
+  @override
+  String tasksRescheduled(int count) {
+    return '$count tasks rescheduled';
+  }
+
+  @override
+  String get systemAlarmTitle => 'Set system alarm';
+
+  @override
+  String get systemAlarmSubtitle => 'Also add reminder in system alarm app';
+
+  @override
+  String get systemAlarmPermissionTitle => 'Alarm permission required';
+
+  @override
+  String get systemAlarmPermissionMessage =>
+      'To add alarms silently, please go to Settings -> Privacy/Security -> Special app access -> Alarms & reminders to grant permission.';
+
+  @override
+  String get goToSettings => 'Go to Settings';
+
+  @override
+  String get useSystemAlarmFallback => 'Add via system alarm app';
 }

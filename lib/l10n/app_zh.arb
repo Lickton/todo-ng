@@ -30,11 +30,13 @@
     }
   },
   "today": "今天",
+  "calendar": "日历",
   "filter": "筛选",
   "selectDate": "选择日期",
   "selectTime": "选择时间",
   "setDate": "设置日期",
   "setTime": "设置时间",
+  "time": "时间",
   "dateAndTime": "日期与时间",
   "completionStatus": "完成状态",
   "completed": "已完成",
@@ -44,7 +46,15 @@
   "daily": "每天",
   "weekly": "每周",
   "monthly": "每月",
+  "yearly": "每年",
   "noRepeat": "不重复",
+  "mondayShort": "一",
+  "tuesdayShort": "二",
+  "wednesdayShort": "三",
+  "thursdayShort": "四",
+  "fridayShort": "五",
+  "saturdayShort": "六",
+  "sundayShort": "日",
   "reminders": "提醒",
   "on": "开启",
   "off": "关闭",
@@ -119,5 +129,53 @@
     "placeholders": {
       "version": { "type": "String" }
     }
-  }
+  },
+  "reminder": "提醒",
+  "reminderEnabled": "开启提醒",
+  "reminderTime": "提醒时间",
+  "minutesBefore": "提前 {minutes} 分钟",
+  "@minutesBefore": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "onTime": "准时",
+  "customTime": "自定义时间...",
+  "tapToSetReminderTime": "点击设置提醒时间",
+  "modify": "修改",
+  "set": "设置",
+  "timeNotSet": "未设置",
+  "quickOptions": "快捷选项",
+  "todayAt": "今天 {time}",
+  "@todayAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "tomorrowAt": "明天 {time}",
+  "@tomorrowAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "overdue": "过期",
+  "reschedule": "重新安排",
+  "noTasks": "没有任务",
+  "tomorrow": "明天",
+  "tapToAddTask": "点击下方 + 按钮添加任务",
+  "thisWeekend": "本周末",
+  "customDate": "自定义日期",
+  "goToToday": "回到今天",
+  "tasksRescheduled": "已重新安排 {count} 个任务",
+  "@tasksRescheduled": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "systemAlarmTitle": "设定系统闹钟",
+  "systemAlarmSubtitle": "同时在系统闹钟中添加提醒",
+  "systemAlarmPermissionTitle": "需要闹钟权限",
+  "systemAlarmPermissionMessage": "为静默添加闹钟，请前往「设置」->「隐私/安全」->「特殊应用权限」->「闹钟和提醒」为本应用授权。",
+  "goToSettings": "去设置",
+  "useSystemAlarmFallback": "使用系统界面添加"
 }

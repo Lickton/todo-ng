@@ -30,11 +30,13 @@
     }
   },
   "today": "Today",
+  "calendar": "Calendar",
   "filter": "Filter",
   "selectDate": "Select date",
   "selectTime": "Select time",
   "setDate": "Set date",
   "setTime": "Set time",
+  "time": "Time",
   "dateAndTime": "Date & Time",
   "completionStatus": "Completion Status",
   "completed": "Completed",
@@ -44,7 +46,15 @@
   "daily": "Daily",
   "weekly": "Weekly",
   "monthly": "Monthly",
+  "yearly": "Yearly",
   "noRepeat": "No repeat",
+  "mondayShort": "Mon",
+  "tuesdayShort": "Tue",
+  "wednesdayShort": "Wed",
+  "thursdayShort": "Thu",
+  "fridayShort": "Fri",
+  "saturdayShort": "Sat",
+  "sundayShort": "Sun",
   "reminders": "Reminders",
   "on": "On",
   "off": "Off",
@@ -119,5 +129,53 @@
     "placeholders": {
       "version": { "type": "String" }
     }
-  }
+  },
+  "reminder": "Reminder",
+  "reminderEnabled": "Reminder enabled",
+  "reminderTime": "Reminder time",
+  "minutesBefore": "{minutes} min before",
+  "@minutesBefore": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "onTime": "On time",
+  "customTime": "Custom time...",
+  "tapToSetReminderTime": "Tap to set reminder time",
+  "modify": "Modify",
+  "set": "Set",
+  "timeNotSet": "Not set",
+  "quickOptions": "Quick options",
+  "todayAt": "Today {time}",
+  "@todayAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "tomorrowAt": "Tomorrow {time}",
+  "@tomorrowAt": {
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
+  "overdue": "Overdue",
+  "reschedule": "Reschedule",
+  "noTasks": "No tasks",
+  "tomorrow": "Tomorrow",
+  "tapToAddTask": "Tap + to add a task",
+  "thisWeekend": "This weekend",
+  "customDate": "Custom date",
+  "goToToday": "Go to today",
+  "tasksRescheduled": "{count} tasks rescheduled",
+  "@tasksRescheduled": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "systemAlarmTitle": "Set system alarm",
+  "systemAlarmSubtitle": "Also add reminder in system alarm app",
+  "systemAlarmPermissionTitle": "Alarm permission required",
+  "systemAlarmPermissionMessage": "To add alarms silently, please go to Settings -> Privacy/Security -> Special app access -> Alarms & reminders to grant permission.",
+  "goToSettings": "Go to Settings",
+  "useSystemAlarmFallback": "Add via system alarm app"
 }

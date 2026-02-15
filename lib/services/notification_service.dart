@@ -23,27 +23,54 @@ class NotificationService {
       return;
     }
 
-    if (!task.hasNotification || task.time == null || task.date == null) {
-      print('Notification not scheduled: hasNotification=${task.hasNotification}, time=${task.time}, date=${task.date}');
+    if (!task.hasNotification) {
+      print('Notification not scheduled: hasNotification=false');
       return;
     }
 
     try {
-      // Parse the date and time
-      final dateFormat = DateFormat('dd/MM/yy');
-      final timeFormat = DateFormat('h:mm a');
+      DateTime? scheduledDateTime;
 
-      final date = dateFormat.parse(task.date!);
-      final time = timeFormat.parse(task.time!);
-
-      // Combine date and time
-      final scheduledDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time.hour,
-        time.minute,
-      );
+      // 优先使用 reminderTime
+      if (task.reminderTime != null && task.reminderTime!.isNotEmpty) {
+        final rt = task.reminderTime!;
+        if (rt.startsWith('offset:')) {
+          // 相对任务时间：需要 task.date + task.time
+          if (task.time == null || task.date == null) return;
+          final dateFormat = DateFormat('dd/MM/yy');
+          final timeFormat = DateFormat('h:mm a');
+          final date = dateFormat.parse(task.date!);
+          final time = timeFormat.parse(task.time!);
+          final taskDt = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute,
+          );
+          final min = int.tryParse(rt.substring(7)) ?? 5;
+          scheduledDateTime = taskDt.subtract(Duration(minutes: min));
+        } else if (rt.startsWith('custom:')) {
+          scheduledDateTime = DateFormat('dd/MM/yy h:mm a').parse(rt.substring(7));
+        } else {
+          // 绝对时间（无任务时间时）
+          scheduledDateTime = DateFormat('dd/MM/yy h:mm a').parse(rt);
+        }
+      } else {
+        // 兼容旧数据：使用任务时间
+        if (task.time == null || task.date == null) return;
+        final dateFormat = DateFormat('dd/MM/yy');
+        final timeFormat = DateFormat('h:mm a');
+        final date = dateFormat.parse(task.date!);
+        final time = timeFormat.parse(task.time!);
+        scheduledDateTime = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          time.hour,
+          time.minute,
+        );
+      }
 
       print('Scheduling notification for ${task.title} at $scheduledDateTime');
 

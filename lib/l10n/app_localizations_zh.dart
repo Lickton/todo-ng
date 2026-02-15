@@ -86,6 +86,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get today => '今天';
 
   @override
+  String get calendar => '日历';
+
+  @override
   String get filter => '筛选';
 
   @override
@@ -99,6 +102,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get setTime => '设置时间';
+
+  @override
+  String get time => '时间';
 
   @override
   String get dateAndTime => '日期与时间';
@@ -128,7 +134,31 @@ class AppLocalizationsZh extends AppLocalizations {
   String get monthly => '每月';
 
   @override
+  String get yearly => '每年';
+
+  @override
   String get noRepeat => '不重复';
+
+  @override
+  String get mondayShort => '一';
+
+  @override
+  String get tuesdayShort => '二';
+
+  @override
+  String get wednesdayShort => '三';
+
+  @override
+  String get thursdayShort => '四';
+
+  @override
+  String get fridayShort => '五';
+
+  @override
+  String get saturdayShort => '六';
+
+  @override
+  String get sundayShort => '日';
 
   @override
   String get reminders => '提醒';
@@ -328,4 +358,97 @@ class AppLocalizationsZh extends AppLocalizations {
   String versionLabel(String version) {
     return '版本 $version';
   }
+
+  @override
+  String get reminder => '提醒';
+
+  @override
+  String get reminderEnabled => '开启提醒';
+
+  @override
+  String get reminderTime => '提醒时间';
+
+  @override
+  String minutesBefore(int minutes) {
+    return '提前 $minutes 分钟';
+  }
+
+  @override
+  String get onTime => '准时';
+
+  @override
+  String get customTime => '自定义时间...';
+
+  @override
+  String get tapToSetReminderTime => '点击设置提醒时间';
+
+  @override
+  String get modify => '修改';
+
+  @override
+  String get set => '设置';
+
+  @override
+  String get timeNotSet => '未设置';
+
+  @override
+  String get quickOptions => '快捷选项';
+
+  @override
+  String todayAt(String time) {
+    return '今天 $time';
+  }
+
+  @override
+  String tomorrowAt(String time) {
+    return '明天 $time';
+  }
+
+  @override
+  String get overdue => '过期';
+
+  @override
+  String get reschedule => '重新安排';
+
+  @override
+  String get noTasks => '没有任务';
+
+  @override
+  String get tomorrow => '明天';
+
+  @override
+  String get tapToAddTask => '点击下方 + 按钮添加任务';
+
+  @override
+  String get thisWeekend => '本周末';
+
+  @override
+  String get customDate => '自定义日期';
+
+  @override
+  String get goToToday => '回到今天';
+
+  @override
+  String tasksRescheduled(int count) {
+    return '已重新安排 $count 个任务';
+  }
+
+  @override
+  String get systemAlarmTitle => '设定系统闹钟';
+
+  @override
+  String get systemAlarmSubtitle => '同时在系统闹钟中添加提醒';
+
+  @override
+  String get systemAlarmPermissionTitle => '需要闹钟权限';
+
+  @override
+  String get systemAlarmPermissionMessage =>
+      '为静默添加闹钟，请前往「设置」->「隐私/安全」->「特殊应用权限」->「闹钟和提醒」为本应用授权。';
+
+  @override
+  String get goToSettings => '去设置';
+
+  @override
+  String get useSystemAlarmFallback => '使用系统界面添加';
 }

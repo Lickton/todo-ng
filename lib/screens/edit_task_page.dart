@@ -1,5 +1,6 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
@@ -7,8 +8,10 @@ import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
-import 'package:doable_todo_list_app/services/notification_service.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
+import 'package:doable_todo_list_app/services/system_alarm_service.dart';
+import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
+import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
 // Import Task view model from Home if you keep it there,
 // or duplicate the minimal fields you need here.
@@ -31,8 +34,12 @@ class _EditTaskPageState extends State<EditTaskPage> {
 
   // UI state
   bool _reminder = false;
-  String? _repeatRule; // "Daily" | "Weekly" | "Monthly" | "No repeat" | null
-  final Set<int> _repeatWeekdays = {}; // 1=Mon ... 7=Sun
+  String? _reminderTime;
+  bool _useSystemAlarm = false;
+  String? _repeatRule;
+  final Set<int> _repeatWeekdays = {};
+  final Set<int> _repeatMonthDays = {};
+  final Map<int, Set<int>> _repeatYearMonthDays = {};
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
@@ -64,8 +71,10 @@ class _EditTaskPageState extends State<EditTaskPage> {
 
       // Prefill toggles
       _reminder = _task.hasNotification;
+      _reminderTime = _task.reminderTime;
+      _useSystemAlarm = _task.useSystemAlarm;
       _repeatRule = _task.repeatRule;
-      _hydrateWeekdaysFromRule(_repeatRule);
+      _hydrateAllFromRule(_repeatRule);
 
       // Prefill date/time (parse stored display strings)
       _selectedDate = _parseDateOrNull(_task.date);
@@ -113,87 +122,39 @@ class _EditTaskPageState extends State<EditTaskPage> {
     }
   }
 
-  // ===== Repeat helpers (Weekly day parsing/selection) =====
-
-  void _hydrateWeekdaysFromRule(String? rule) {
+  void _hydrateAllFromRule(String? rule) {
     _repeatWeekdays.clear();
+    _repeatMonthDays.clear();
+    _repeatYearMonthDays.clear();
     if (rule == null) return;
-    if (!rule.startsWith('Weekly')) return;
-
-    // Supports "Weekly:[1,2,3]" or "Weekly:1,2,3" or variants with spaces
-    final exp = RegExp(r'(\d+)');
-    for (final m in exp.allMatches(rule)) {
-      final v = int.tryParse(m.group(1)!);
-      if (v != null && v >= 1 && v <= 7) _repeatWeekdays.add(v);
+    final colon = rule.indexOf(':');
+    if (colon < 0 || colon + 1 >= rule.length) return;
+    final suffix = rule.substring(colon + 1).trim();
+    if (rule.startsWith('Weekly')) {
+      for (final s in suffix.split(RegExp(r'[,\s\[\]]+'))) {
+        final v = int.tryParse(s.trim());
+        if (v != null && v >= 1 && v <= 7) _repeatWeekdays.add(v);
+      }
+    } else if (rule.startsWith('Monthly')) {
+      for (final s in suffix.split(RegExp(r'[,\s\[\]]+'))) {
+        final v = int.tryParse(s.trim());
+        if (v != null && v >= 1 && v <= 31) _repeatMonthDays.add(v);
+      }
+    } else if (rule.startsWith('Yearly')) {
+      for (final part in suffix.split(',')) {
+        final dash = part.indexOf('-');
+        if (dash > 0 && dash < part.length - 1) {
+          final m = int.tryParse(part.substring(0, dash).trim());
+          final d = int.tryParse(part.substring(dash + 1).trim());
+          if (m != null && d != null && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+            _repeatYearMonthDays.putIfAbsent(m, () => {}).add(d);
+          }
+        }
+      }
     }
-  }
-
-  void _selectRepeatRule(String rule) {
-    setState(() {
-      _repeatRule = rule;
-      if (rule != 'Weekly') {
-        _repeatWeekdays.clear();
-      }
-    });
-  }
-
-  void _toggleWeekday(int weekday) {
-    setState(() {
-      if (_repeatWeekdays.contains(weekday)) {
-        _repeatWeekdays.remove(weekday);
-      } else {
-        _repeatWeekdays.add(weekday);
-      }
-      if (_repeatWeekdays.isNotEmpty) {
-        _repeatRule = 'Weekly'; // force Weekly if any day is picked
-      }
-    });
   }
 
   // ===== Pickers =====
-
-  Future<void> _pickDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? now,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
-      helpText: 'Select date',
-    );
-    if (picked != null) setState(() => _selectedDate = picked);
-  }
-
-  Future<void> _pickTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime ?? TimeOfDay.now(),
-      helpText: 'Select time',
-    );
-    if (picked != null) setState(() => _selectedTime = picked);
-  }
-
-  void _toggleReminder() async {
-    final userEnabled = await NotificationService.areNotificationsEnabledByUser();
-
-    if (!userEnabled) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Notifications are disabled in settings'),
-          action: SnackBarAction(
-            label: 'Settings',
-            onPressed: () {
-              Navigator.pushNamed(context, 'settings');
-            },
-          ),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _reminder = !_reminder);
-  }
 
   // ===== Save =====
 
@@ -223,16 +184,25 @@ class _EditTaskPageState extends State<EditTaskPage> {
     }
 
     // Build display strings
-    final dateStr = _selectedDate != null ? _formatDate(_selectedDate!) : null;
+    final dateStr = _formatDate(_selectedDate ?? DateTime.now());
     final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
 
-    // Build repeat rule string
     String? normalizedRepeat;
     if (_repeatRule == null || _repeatRule == 'No repeat') {
       normalizedRepeat = null;
     } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
-      final list = _repeatWeekdays.toList()..sort(); // 1..7 stable order
-      normalizedRepeat = 'Weekly:${list.toString()}'; // Weekly:[1,2,4]
+      normalizedRepeat = 'Weekly:${_repeatWeekdays.toList()..sort()}';
+    } else if (_repeatRule == 'Monthly' && _repeatMonthDays.isNotEmpty) {
+      normalizedRepeat = 'Monthly:${_repeatMonthDays.toList()..sort()}';
+    } else if (_repeatRule == 'Yearly' && _repeatYearMonthDays.isNotEmpty) {
+      final parts = <String>[];
+      for (final e in _repeatYearMonthDays.entries) {
+        for (final d in e.value) {
+          parts.add('${e.key}-$d');
+        }
+      }
+      parts.sort();
+      normalizedRepeat = 'Yearly:${parts.join(',')}';
     } else {
       normalizedRepeat = _repeatRule;
     }
@@ -245,12 +215,34 @@ class _EditTaskPageState extends State<EditTaskPage> {
       time: timeStr,
       date: dateStr,
       hasNotification: _reminder,
+      reminderTime: _reminder ? _reminderTime : null,
+      useSystemAlarm: _useSystemAlarm,
       repeatRule: normalizedRepeat,
       completed: _task.completed, // preserve current completed state
       actions: validActions.isEmpty ? null : validActions,
     );
 
     await TaskRepository().update(entity);
+
+    if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
+      final hm = ReminderSettingField.getReminderHourMinute(
+        reminderTime: _reminderTime,
+        taskDate: _selectedDate ?? DateTime.now(),
+        taskTime: _selectedTime,
+      );
+      if (hm != null && mounted) {
+        await SystemAlarmService.instance.createAlarm(
+          hour: hm.$1,
+          minute: hm.$2,
+          title: title,
+          context: context,
+          getPermissionTitle: () => AppLocalizations.of(context)!.systemAlarmPermissionTitle,
+          getPermissionMessage: () => AppLocalizations.of(context)!.systemAlarmPermissionMessage,
+          getGoToSettingsLabel: () => AppLocalizations.of(context)!.goToSettings,
+          getCancelLabel: () => AppLocalizations.of(context)!.useSystemAlarmFallback,
+        );
+      }
+    }
 
     if (mounted) Navigator.pop(context, true); // signal Home to refresh
   }
@@ -294,13 +286,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Reminder button: blue bg + white icon/text when enabled
-              _ReminderButton(
-                enabled: _reminder,
-                onTap: _toggleReminder,
-              ),
-              SizedBox(height: bigSpacing),
-
               _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
               SizedBox(height: spacing),
 
@@ -317,82 +302,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
               ),
               SizedBox(height: bigSpacing),
 
-              _FieldLabel(text: AppLocalizations.of(context)!.repeat),
-              SizedBox(height: spacing),
-
-              // Frequency chips
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.daily,
-                    selected: _repeatRule == 'Daily',
-                    onTap: () => _selectRepeatRule('Daily'),
-                  ),
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.weekly,
-                    selected: _repeatRule == 'Weekly',
-                    onTap: () => _selectRepeatRule('Weekly'),
-                  ),
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.monthly,
-                    selected: _repeatRule == 'Monthly',
-                    onTap: () => _selectRepeatRule('Monthly'),
-                  ),
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.noRepeat,
-                    selected: _repeatRule == null || _repeatRule == 'No repeat',
-                    onTap: () => _selectRepeatRule('No repeat'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Weekday chips (always visible; applied when Weekly)
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.sunday,
-                    selected: _repeatWeekdays.contains(7),
-                    onTap: () => _toggleWeekday(7),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.monday,
-                    selected: _repeatWeekdays.contains(1),
-                    onTap: () => _toggleWeekday(1),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.tuesday,
-                    selected: _repeatWeekdays.contains(2),
-                    onTap: () => _toggleWeekday(2),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.wednesday,
-                    selected: _repeatWeekdays.contains(3),
-                    onTap: () => _toggleWeekday(3),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.thursday,
-                    selected: _repeatWeekdays.contains(4),
-                    onTap: () => _toggleWeekday(4),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.friday,
-                    selected: _repeatWeekdays.contains(5),
-                    onTap: () => _toggleWeekday(5),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.saturday,
-                    selected: _repeatWeekdays.contains(6),
-                    onTap: () => _toggleWeekday(6),
-                  ),
-                ],
-              ),
-              SizedBox(height: bigSpacing),
-
               // Action selector
               ActionSelector(
                 showTitle: true,
@@ -402,29 +311,42 @@ class _EditTaskPageState extends State<EditTaskPage> {
               ),
               SizedBox(height: bigSpacing),
 
-              _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
+              // 时间（含重复 + 时间选择）
+              _FieldLabel(text: AppLocalizations.of(context)!.time),
               SizedBox(height: spacing),
-
-              // Date field with calendar icon
-              _PickerField(
-                hint: AppLocalizations.of(context)!.setDate,
-                valueText: _selectedDate != null ? _formatDate(_selectedDate!) : null,
-                iconAsset: 'assets/calendar.svg',
-                onTap: _pickDate,
-                onClear: _selectedDate != null
-                    ? () => setState(() => _selectedDate = null)
-                    : null,
+              RepeatPickerField(
+                repeatRule: _repeatRule,
+                repeatWeekdays: _repeatWeekdays,
+                repeatMonthDays: _repeatMonthDays,
+                repeatYearMonthDays: _repeatYearMonthDays,
+                selectedTime: _selectedTime,
+                onTimeChanged: (t) => setState(() => _selectedTime = t),
+                onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
+                  setState(() {
+                    _repeatRule = rule;
+                    _repeatWeekdays.clear();
+                    _repeatWeekdays.addAll(weekdays ?? {});
+                    _repeatMonthDays.clear();
+                    _repeatMonthDays.addAll(monthDays ?? {});
+                    _repeatYearMonthDays.clear();
+                    _repeatYearMonthDays.addAll(yearMonthDays ?? {});
+                  });
+                },
               ),
-              SizedBox(height: spacing),
-
-              // Time field with clock icon
-              _PickerField(
-                hint: AppLocalizations.of(context)!.setTime,
-                valueText: _selectedTime != null ? _formatTime(_selectedTime!) : null,
-                iconAsset: 'assets/clock.svg',
-                onTap: _pickTime,
-                onClear: _selectedTime != null
-                    ? () => setState(() => _selectedTime = null)
+              const SizedBox(height: 12),
+              ReminderSettingField(
+                reminderEnabled: _reminder,
+                reminderTime: _reminderTime,
+                taskDate: _selectedDate ?? DateTime.now(),
+                taskTime: _selectedTime,
+                onReminderChanged: (enabled, time) =>
+                    setState(() {
+                      _reminder = enabled;
+                      _reminderTime = time;
+                    }),
+                useSystemAlarm: _useSystemAlarm,
+                onSystemAlarmChanged: Platform.isAndroid
+                    ? (v) => setState(() => _useSystemAlarm = v)
                     : null,
               ),
               const SizedBox(height: 8),
@@ -443,6 +365,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
             child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF3B82F6),
+                foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -517,194 +440,6 @@ class _InputField extends StatelessWidget {
         ),
       ),
       style: const TextStyle(fontSize: 14, height: 1.4),
-    );
-  }
-}
-
-class _ReminderButton extends StatelessWidget {
-  const _ReminderButton({required this.enabled, required this.onTap});
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = enabled ? _EditTaskPageState.blueColor : Colors.white;
-    final fg = enabled ? Colors.white : Colors.black;
-
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: bg,
-        shape: StadiumBorder(
-          side: BorderSide(color: Colors.grey.shade300),
-        ),
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const StadiumBorder(),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  AppLocalizations.of(context)!.setReminder,
-                  style: TextStyle(
-                    color: fg,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SvgPicture.asset(
-                  enabled ? 'assets/bell_white.svg' : 'assets/bell.svg',
-                  height: 18,
-                  width: 18,
-                  colorFilter: enabled
-                      ? null
-                      : const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RepeatChip extends StatelessWidget {
-  const _RepeatChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = selected ? Colors.black : Colors.white;
-    final fg = selected ? Colors.white : Colors.black;
-
-    return Material(
-      color: bg,
-      shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _WeekdayChip extends StatelessWidget {
-  const _WeekdayChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = selected ? Colors.black : Colors.white;
-    final fg = selected ? Colors.white : Colors.black;
-
-    return Material(
-      color: bg,
-      shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PickerField extends StatelessWidget {
-  const _PickerField({
-    required this.hint,
-    required this.iconAsset,
-    required this.onTap,
-    this.valueText,
-    this.onClear,
-  });
-
-  final String hint;
-  final String iconAsset;
-  final String? valueText;
-  final VoidCallback onTap;
-  final VoidCallback? onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasValue = valueText != null && valueText!.isNotEmpty;
-
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              SvgPicture.asset(
-                iconAsset,
-                height: 18,
-                width: 18,
-                colorFilter:
-                const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  hasValue ? valueText! : hint,
-                  style: TextStyle(
-                    color: hasValue ? Colors.black : Colors.black54,
-                    fontWeight: hasValue ? FontWeight.w600 : FontWeight.w500,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              if (hasValue && onClear != null)
-                IconButton(
-                  tooltip: 'Clear',
-                  icon: const Icon(Icons.close, size: 20, color: Colors.black54),
-                  onPressed: onClear,
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -3,7 +3,7 @@ import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/screens/add_task_page.dart';
 import 'package:doable_todo_list_app/screens/edit_task_page.dart';
-import 'package:doable_todo_list_app/screens/home_page.dart';
+import 'package:doable_todo_list_app/screens/main_scaffold.dart';
 import 'package:doable_todo_list_app/screens/settings_page.dart';
 import 'package:doable_todo_list_app/services/config_service.dart';
 import 'package:doable_todo_list_app/services/notification_service.dart';
@@ -133,7 +133,7 @@ class _DoableAppState extends State<DoableApp> {
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
-          home: const HomePage(),
+          home: const MainScaffold(),
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
           //colors
@@ -181,7 +181,7 @@ class _DoableAppState extends State<DoableApp> {
           )),
           initialRoute: 'home',
           routes: {
-            'home': (context) => const HomePage(),
+            'home': (context) => const MainScaffold(),
             'add_task': (context) => const AddTaskPage(),
             'edit_task': (context) => const EditTaskPage(),
             'settings': (context) => const SettingsPage(),

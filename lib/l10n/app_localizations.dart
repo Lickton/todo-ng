@@ -248,6 +248,12 @@ abstract class AppLocalizations {
   /// **'Today'**
   String get today;
 
+  /// No description provided for @calendar.
+  ///
+  /// In en, this message translates to:
+  /// **'Calendar'**
+  String get calendar;
+
   /// No description provided for @filter.
   ///
   /// In en, this message translates to:
@@ -277,6 +283,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set time'**
   String get setTime;
+
+  /// No description provided for @time.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get time;
 
   /// No description provided for @dateAndTime.
   ///
@@ -332,11 +344,59 @@ abstract class AppLocalizations {
   /// **'Monthly'**
   String get monthly;
 
+  /// No description provided for @yearly.
+  ///
+  /// In en, this message translates to:
+  /// **'Yearly'**
+  String get yearly;
+
   /// No description provided for @noRepeat.
   ///
   /// In en, this message translates to:
   /// **'No repeat'**
   String get noRepeat;
+
+  /// No description provided for @mondayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Mon'**
+  String get mondayShort;
+
+  /// No description provided for @tuesdayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Tue'**
+  String get tuesdayShort;
+
+  /// No description provided for @wednesdayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Wed'**
+  String get wednesdayShort;
+
+  /// No description provided for @thursdayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Thu'**
+  String get thursdayShort;
+
+  /// No description provided for @fridayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Fri'**
+  String get fridayShort;
+
+  /// No description provided for @saturdayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sat'**
+  String get saturdayShort;
+
+  /// No description provided for @sundayShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sun'**
+  String get sundayShort;
 
   /// No description provided for @reminders.
   ///
@@ -727,6 +787,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Version {version}'**
   String versionLabel(String version);
+
+  /// No description provided for @reminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder'**
+  String get reminder;
+
+  /// No description provided for @reminderEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder enabled'**
+  String get reminderEnabled;
+
+  /// No description provided for @reminderTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder time'**
+  String get reminderTime;
+
+  /// No description provided for @minutesBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min before'**
+  String minutesBefore(int minutes);
+
+  /// No description provided for @onTime.
+  ///
+  /// In en, this message translates to:
+  /// **'On time'**
+  String get onTime;
+
+  /// No description provided for @customTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom time...'**
+  String get customTime;
+
+  /// No description provided for @tapToSetReminderTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to set reminder time'**
+  String get tapToSetReminderTime;
+
+  /// No description provided for @modify.
+  ///
+  /// In en, this message translates to:
+  /// **'Modify'**
+  String get modify;
+
+  /// No description provided for @set.
+  ///
+  /// In en, this message translates to:
+  /// **'Set'**
+  String get set;
+
+  /// No description provided for @timeNotSet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not set'**
+  String get timeNotSet;
+
+  /// No description provided for @quickOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick options'**
+  String get quickOptions;
+
+  /// No description provided for @todayAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Today {time}'**
+  String todayAt(String time);
+
+  /// No description provided for @tomorrowAt.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow {time}'**
+  String tomorrowAt(String time);
+
+  /// No description provided for @overdue.
+  ///
+  /// In en, this message translates to:
+  /// **'Overdue'**
+  String get overdue;
+
+  /// No description provided for @reschedule.
+  ///
+  /// In en, this message translates to:
+  /// **'Reschedule'**
+  String get reschedule;
+
+  /// No description provided for @noTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No tasks'**
+  String get noTasks;
+
+  /// No description provided for @tomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get tomorrow;
+
+  /// No description provided for @tapToAddTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap + to add a task'**
+  String get tapToAddTask;
+
+  /// No description provided for @thisWeekend.
+  ///
+  /// In en, this message translates to:
+  /// **'This weekend'**
+  String get thisWeekend;
+
+  /// No description provided for @customDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom date'**
+  String get customDate;
+
+  /// No description provided for @goToToday.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to today'**
+  String get goToToday;
+
+  /// No description provided for @tasksRescheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tasks rescheduled'**
+  String tasksRescheduled(int count);
+
+  /// No description provided for @systemAlarmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Set system alarm'**
+  String get systemAlarmTitle;
+
+  /// No description provided for @systemAlarmSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Also add reminder in system alarm app'**
+  String get systemAlarmSubtitle;
+
+  /// No description provided for @systemAlarmPermissionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Alarm permission required'**
+  String get systemAlarmPermissionTitle;
+
+  /// No description provided for @systemAlarmPermissionMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'To add alarms silently, please go to Settings -> Privacy/Security -> Special app access -> Alarms & reminders to grant permission.'**
+  String get systemAlarmPermissionMessage;
+
+  /// No description provided for @goToSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Settings'**
+  String get goToSettings;
+
+  /// No description provided for @useSystemAlarmFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Add via system alarm app'**
+  String get useSystemAlarmFallback;
 }
 
 class _AppLocalizationsDelegate
