@@ -48,6 +48,30 @@ class TaskDao {
     return TaskEntity.fromMap(rows.first);
   }
 
+  /// 获取所有设置了动作的任务（action_type 非空）。
+  static Future<List<TaskEntity>> getTasksWithActions() async {
+    final db = await DatabaseService.instance();
+    final rows = await db.query(
+      table,
+      where: 'action_type IS NOT NULL AND action_type != ?',
+      whereArgs: [''],
+      orderBy: 'completed ASC, updated_at DESC, id DESC',
+    );
+    return rows.map(TaskEntity.fromMap).toList();
+  }
+
+  /// 按动作类型筛选任务。
+  static Future<List<TaskEntity>> getTasksByActionType(String type) async {
+    final db = await DatabaseService.instance();
+    final rows = await db.query(
+      table,
+      where: 'action_type = ?',
+      whereArgs: [type],
+      orderBy: 'completed ASC, updated_at DESC, id DESC',
+    );
+    return rows.map(TaskEntity.fromMap).toList();
+  }
+
   static Future<int> clearAll() async {
     final db = await DatabaseService.instance();
     return db.delete('tasks');
