@@ -1,0 +1,331 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
+import 'app_localizations.dart';
+
+// ignore_for_file: type=lint
+
+/// The translations for Chinese (`zh`).
+class AppLocalizationsZh extends AppLocalizations {
+  AppLocalizationsZh([String locale = 'zh']) : super(locale);
+
+  @override
+  String get settings => '设置';
+
+  @override
+  String get notifications => '通知';
+
+  @override
+  String get clearAllData => '清除全部数据';
+
+  @override
+  String get language => '语言';
+
+  @override
+  String get languageSystem => '跟随系统';
+
+  @override
+  String get languageEn => 'English';
+
+  @override
+  String get languageZh => '简体中文';
+
+  @override
+  String get license => '许可';
+
+  @override
+  String get version => '版本';
+
+  @override
+  String get back => '返回';
+
+  @override
+  String get clearAllDataTitle => '清除全部数据？';
+
+  @override
+  String get clearAllDataContent => '将删除所有任务并重置应用。此操作无法撤销。';
+
+  @override
+  String get cancel => '取消';
+
+  @override
+  String get clear => '清除';
+
+  @override
+  String get notificationPermissionDenied => '通知权限被拒绝';
+
+  @override
+  String get notificationsEnabledAndScheduled => '通知已开启并已排期';
+
+  @override
+  String get allNotificationsCancelled => '所有通知已取消';
+
+  @override
+  String get notificationPermissionRequired => '需要通知权限';
+
+  @override
+  String get notificationsDisabledInSettings => '通知已在设置中关闭';
+
+  @override
+  String get testNotification => '测试通知';
+
+  @override
+  String get testNotificationBody => '这是一条测试通知，用于验证通知功能是否正常。';
+
+  @override
+  String get testNotificationSent => '测试通知已发送';
+
+  @override
+  String get allDataCleared => '全部数据已清除';
+
+  @override
+  String couldNotOpenUrl(String url) {
+    return '无法打开 $url';
+  }
+
+  @override
+  String get today => '今天';
+
+  @override
+  String get filter => '筛选';
+
+  @override
+  String get selectDate => '选择日期';
+
+  @override
+  String get selectTime => '选择时间';
+
+  @override
+  String get setDate => '设置日期';
+
+  @override
+  String get setTime => '设置时间';
+
+  @override
+  String get dateAndTime => '日期与时间';
+
+  @override
+  String get completionStatus => '完成状态';
+
+  @override
+  String get completed => '已完成';
+
+  @override
+  String get incomplete => '未完成';
+
+  @override
+  String get any => '任意';
+
+  @override
+  String get repeat => '重复';
+
+  @override
+  String get daily => '每天';
+
+  @override
+  String get weekly => '每周';
+
+  @override
+  String get monthly => '每月';
+
+  @override
+  String get noRepeat => '不重复';
+
+  @override
+  String get reminders => '提醒';
+
+  @override
+  String get on => '开启';
+
+  @override
+  String get off => '关闭';
+
+  @override
+  String get applyFilter => '应用筛选';
+
+  @override
+  String get clearSelections => '清除选择';
+
+  @override
+  String get createTodo => '创建待办';
+
+  @override
+  String get modifyTodo => '修改待办';
+
+  @override
+  String get setReminder => '设置提醒';
+
+  @override
+  String get tellUsAboutTask => '告诉我们你的任务';
+
+  @override
+  String get title => '标题';
+
+  @override
+  String get description => '描述';
+
+  @override
+  String get sunday => '周日';
+
+  @override
+  String get monday => '周一';
+
+  @override
+  String get tuesday => '周二';
+
+  @override
+  String get wednesday => '周三';
+
+  @override
+  String get thursday => '周四';
+
+  @override
+  String get friday => '周五';
+
+  @override
+  String get saturday => '周六';
+
+  @override
+  String get save => '保存';
+
+  @override
+  String get pleaseEnterTitle => '请输入标题';
+
+  @override
+  String get pleaseFillActionOrSelectNone => '请填写动作内容或选择「无动作」';
+
+  @override
+  String actionOpened(String action) {
+    return '已打开 $action';
+  }
+
+  @override
+  String get actionOpenFailed => '打开失败，请检查是否安装对应应用';
+
+  @override
+  String get actionTypeNoAction => '无动作';
+
+  @override
+  String get actionTypeNavigation => '导航';
+
+  @override
+  String get actionTypePhone => '电话';
+
+  @override
+  String get actionTypeWeb => '网页';
+
+  @override
+  String get actionTypeMeeting => '会议';
+
+  @override
+  String get actionTypeMessage => '消息';
+
+  @override
+  String get actionTypeLabelNavigation => '导航';
+
+  @override
+  String get actionTypeLabelPhone => '拨打';
+
+  @override
+  String get actionTypeLabelWeb => '打开';
+
+  @override
+  String get actionTypeLabelMeeting => '会议';
+
+  @override
+  String get actionTypeLabelMessage => '消息';
+
+  @override
+  String get actionTypeLabelDefault => '动作';
+
+  @override
+  String get addAction => '添加动作';
+
+  @override
+  String get actionType => '动作类型';
+
+  @override
+  String get destinationAddress => '目的地地址';
+
+  @override
+  String get inputAddress => '输入地址';
+
+  @override
+  String get navApp => '导航应用';
+
+  @override
+  String get gaode => '高德';
+
+  @override
+  String get baidu => '百度';
+
+  @override
+  String get google => '谷歌';
+
+  @override
+  String get phoneNumber => '电话号码';
+
+  @override
+  String get phoneNumberHint => '请输入中国手机号';
+
+  @override
+  String get webUrl => '网页地址';
+
+  @override
+  String get meetingIdOrLink => '会议号或会议链接';
+
+  @override
+  String get meetingIdOrLinkHint => '会议号或完整链接';
+
+  @override
+  String get meetingPlatform => '会议平台';
+
+  @override
+  String get tencentMeeting => '腾讯会议';
+
+  @override
+  String get zoom => 'Zoom';
+
+  @override
+  String get dingtalk => '钉钉';
+
+  @override
+  String get messageContent => '消息内容';
+
+  @override
+  String get messageContentHint => '预设消息文本';
+
+  @override
+  String get contactOptional => '联系人（可选）';
+
+  @override
+  String get contactHint => '联系人标识';
+
+  @override
+  String get pleaseFillContent => '请填写内容';
+
+  @override
+  String get meetingInvitationEmpty => '会议邀请为空';
+
+  @override
+  String get tencentMeetingNotInstalled => '腾讯会议未安装';
+
+  @override
+  String get phoneError => '请输入正确的中国手机号（11 位）';
+
+  @override
+  String get urlError => '请输入以 http:// 或 https:// 开头的网址';
+
+  @override
+  String get removeAction => '移除动作';
+
+  @override
+  String get delete => '删除';
+
+  @override
+  String get addAnotherAction => '添加动作';
+
+  @override
+  String versionLabel(String version) {
+    return '版本 $version';
+  }
+}

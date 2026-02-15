@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'action_item.dart';
+
 class TaskEntity {
   TaskEntity({
     this.id,
@@ -10,9 +14,7 @@ class TaskEntity {
     this.completed = false,
     this.createdAt,
     this.updatedAt,
-    this.actionType,
-    this.actionData,
-    this.actionTarget,
+    this.actions,
   });
 
   int? id;
@@ -26,44 +28,77 @@ class TaskEntity {
   String? createdAt;
   String? updatedAt;
 
-  /// 动作类型。可选: 'navigation'|'phone'|'web'|'meeting'|'message'，null 表示无动作。
-  String? actionType;
-  /// 动作数据: navigation=地址, phone=号码, web=URL, meeting=会议链接/会议号, message=预设消息文本。
-  String? actionData;
-  /// 动作目标: navigation=地图偏好('gaode'|'baidu'|'google'), meeting=会议平台('tencent'|'zoom'|'dingtalk'), message=联系人标识，其他可为 null。
-  String? actionTarget;
+  /// 动作列表，支持多个动作（如同时打电话+导航）。空或 null 表示无动作。
+  List<ActionItem>? actions;
 
-  factory TaskEntity.fromMap(Map<String, dynamic> m) => TaskEntity(
-        id: m['id'] as int?,
-        title: m['title'] as String,
-        description: m['description'] as String?,
-        time: m['time'] as String?,
-        date: m['date'] as String?,
-        hasNotification: (m['has_notification'] as int? ?? 0) == 1,
-        repeatRule: m['repeat_rule'] as String?,
-        completed: (m['completed'] as int? ?? 0) == 1,
-        createdAt: m['created_at'] as String?,
-        updatedAt: m['updated_at'] as String?,
-        actionType: m['action_type'] as String?,
-        actionData: m['action_data'] as String?,
-        actionTarget: m['action_target'] as String?,
-      );
+  /// 兼容旧版单动作：返回第一个动作的 type，无动作时 null。
+  String? get actionType => actions?.isNotEmpty == true ? actions!.first.type : null;
+  String? get actionData => actions?.isNotEmpty == true ? actions!.first.data : null;
+  String? get actionTarget => actions?.isNotEmpty == true ? actions!.first.target : null;
 
-  Map<String, dynamic> toMap() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'time': time,
-        'date': date,
-        'has_notification': hasNotification ? 1 : 0,
-        'repeat_rule': repeatRule,
-        'completed': completed ? 1 : 0,
-        'created_at': createdAt,
-        'updated_at': updatedAt,
-        'action_type': actionType,
-        'action_data': actionData,
-        'action_target': actionTarget,
-      };
+  static List<ActionItem> _parseActions(Map<String, dynamic> m) {
+    final raw = m['actions'] as String?;
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final list = jsonDecode(raw) as List<dynamic>?;
+        if (list != null) {
+          return list
+              .map((e) => ActionItem.fromJson(e as Map<String, dynamic>))
+              .where((a) => a.type.isNotEmpty)
+              .toList();
+        }
+      } catch (_) {}
+    }
+    // 兼容旧版单动作列
+    final t = m['action_type'] as String?;
+    if (t != null && t.isNotEmpty) {
+      return [
+        ActionItem(
+          type: t,
+          data: m['action_data'] as String?,
+          target: m['action_target'] as String?,
+        ),
+      ];
+    }
+    return [];
+  }
+
+  factory TaskEntity.fromMap(Map<String, dynamic> m) {
+    final acts = _parseActions(m);
+    return TaskEntity(
+      id: m['id'] as int?,
+      title: m['title'] as String,
+      description: m['description'] as String?,
+      time: m['time'] as String?,
+      date: m['date'] as String?,
+      hasNotification: (m['has_notification'] as int? ?? 0) == 1,
+      repeatRule: m['repeat_rule'] as String?,
+      completed: (m['completed'] as int? ?? 0) == 1,
+      createdAt: m['created_at'] as String?,
+      updatedAt: m['updated_at'] as String?,
+      actions: acts.isEmpty ? null : acts,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    final acts = actions ?? [];
+    final actionsJson = acts.isEmpty
+        ? null
+        : jsonEncode(acts.map((a) => a.toJson()).toList());
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'time': time,
+      'date': date,
+      'has_notification': hasNotification ? 1 : 0,
+      'repeat_rule': repeatRule,
+      'completed': completed ? 1 : 0,
+      'created_at': createdAt,
+      'updated_at': updatedAt,
+      'actions': actionsJson,
+    };
+  }
 
   TaskEntity copyWith({
     int? id,
@@ -76,9 +111,7 @@ class TaskEntity {
     bool? completed,
     String? createdAt,
     String? updatedAt,
-    String? actionType,
-    String? actionData,
-    String? actionTarget,
+    List<ActionItem>? actions,
   }) {
     return TaskEntity(
       id: id ?? this.id,
@@ -91,9 +124,7 @@ class TaskEntity {
       completed: completed ?? this.completed,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      actionType: actionType ?? this.actionType,
-      actionData: actionData ?? this.actionData,
-      actionTarget: actionTarget ?? this.actionTarget,
+      actions: actions ?? this.actions,
     );
   }
 }

@@ -4,8 +4,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 
-import 'package:doable_todo_list_app/services/notification_service.dart';
+import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
+import 'package:doable_todo_list_app/services/config_service.dart';
+import 'package:doable_todo_list_app/services/notification_service.dart';
 
 import '../main.dart';
 
@@ -45,7 +47,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!granted) {
         // Inform user and keep toggle off
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Notification permission denied')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.notificationPermissionDenied)),
         );
         value = false;
       } else {
@@ -53,9 +55,9 @@ class _SettingsPageState extends State<SettingsPage> {
         try {
           final tasks = await TaskRepository().fetchAll();
           await NotificationService.rescheduleAllNotifications(tasks);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Notifications enabled and scheduled')),
-          );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.notificationsEnabledAndScheduled)),
+        );
         } catch (e) {
           print('Error rescheduling notifications: $e');
         }
@@ -65,7 +67,7 @@ class _SettingsPageState extends State<SettingsPage> {
       try {
         await NotificationService.cancelAllNotifications();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('All notifications cancelled')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.allNotificationsCancelled)),
         );
       } catch (e) {
         print('Error cancelling notifications: $e');
@@ -89,7 +91,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!isAllowed) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notification permission required')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.notificationPermissionRequired)),
       );
       return;
     }
@@ -97,7 +99,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!_notificationsEnabled) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notifications are disabled in settings')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.notificationsDisabledInSettings)),
       );
       return;
     }
@@ -115,22 +117,23 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Test notification sent')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.testNotificationSent)),
     );
   }
 
   Future<void> _confirmAndClearAll() async {
+    final l10n = AppLocalizations.of(context)!;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear all data?'),
-        content: const Text('This will delete all tasks and reset the app to a fresh state. This action cannot be undone.'),
+        title: Text(l10n.clearAllDataTitle),
+        content: Text(l10n.clearAllDataContent),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.black),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear'),
+            child: Text(l10n.clear),
           ),
         ],
       ),
@@ -143,7 +146,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('All data cleared')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.allDataCleared)),
     );
   }
 
@@ -152,7 +155,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open $url')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenUrl(url))),
       );
     }
   }
@@ -161,6 +164,54 @@ class _SettingsPageState extends State<SettingsPage> {
     final w = MediaQuery.of(context).size.width;
     final hpad = (w * 0.05).clamp(16.0, 24.0);
     return EdgeInsets.symmetric(horizontal: hpad);
+  }
+
+  Widget _buildLanguageSelector(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final config = ConfigService.instance;
+    final current = config.localeCode;
+
+    String labelFor(String code) {
+      switch (code) {
+        case ConfigService.localeSystem:
+          return l10n.languageSystem;
+        case ConfigService.localeEn:
+          return l10n.languageEn;
+        case ConfigService.localeZh:
+          return l10n.languageZh;
+        default:
+          return code;
+      }
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          l10n.language,
+          style: TextStyle(fontSize: 16, color: blackColor, fontWeight: FontWeight.w600),
+        ),
+        DropdownButton<String>(
+          value: current,
+          underline: const SizedBox.shrink(),
+          items: [
+            ConfigService.localeSystem,
+            ConfigService.localeEn,
+            ConfigService.localeZh,
+          ].map((code) {
+            return DropdownMenuItem(
+              value: code,
+              child: Text(labelFor(code), style: const TextStyle(fontSize: 14)),
+            );
+          }).toList(),
+          onChanged: (v) async {
+            if (v != null) {
+              await config.setLocale(v);
+            }
+          },
+        ),
+      ],
+    );
   }
 
   @override
@@ -175,10 +226,10 @@ class _SettingsPageState extends State<SettingsPage> {
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context)!.back,
         ),
-        title: const Text(
-          'Settings',
+        title: Text(
+          AppLocalizations.of(context)!.settings,
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -193,12 +244,16 @@ class _SettingsPageState extends State<SettingsPage> {
             : ListView(
           padding: _screenHPad.add(const EdgeInsets.only(bottom: 24, top: 8)),
           children: [
+            // Language selector
+            _buildLanguageSelector(context),
+            const SizedBox(height: 16),
+
             // Notifications toggle
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Notifications',
+                  AppLocalizations.of(context)!.notifications,
                   style: TextStyle(fontSize: 16, color: blackColor, fontWeight: FontWeight.w600),
                 ),
                 Switch(
@@ -225,7 +280,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 onPressed: _confirmAndClearAll,
-                child: const Text('Clear All Data'),
+                child: Text(AppLocalizations.of(context)!.clearAllData),
               ),
             ),
 
@@ -238,7 +293,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Expanded(
                   child: Text(
-                    'License',
+                    AppLocalizations.of(context)!.license,
                     style: TextStyle(fontSize: 14, color: descriptionColor, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -250,7 +305,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Expanded(
                   child: Text(
-                    'Version',
+                    AppLocalizations.of(context)!.version,
                     style: TextStyle(fontSize: 14, color: descriptionColor, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -268,7 +323,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 SvgPicture.asset('assets/trans_logo.svg', height: 56),
                 const SizedBox(height: 8),
                 Text(
-                  'Version $version',
+                  AppLocalizations.of(context)!.versionLabel(version),
                   style: TextStyle(fontSize: 12, color: descriptionColor, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 32),

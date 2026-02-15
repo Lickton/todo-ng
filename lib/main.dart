@@ -1,10 +1,12 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:doable_todo_list_app/services/notification_service.dart';
+import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/screens/add_task_page.dart';
 import 'package:doable_todo_list_app/screens/edit_task_page.dart';
 import 'package:doable_todo_list_app/screens/home_page.dart';
 import 'package:doable_todo_list_app/screens/settings_page.dart';
+import 'package:doable_todo_list_app/services/config_service.dart';
+import 'package:doable_todo_list_app/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -64,6 +66,8 @@ Future<void> main() async {
       systemNavigationBarIconBrightness: Brightness.dark,
       systemNavigationBarDividerColor: whiteColor));
 
+  await ConfigService.init();
+
   runApp(const DoableApp());
 }
 
@@ -119,11 +123,19 @@ class _DoableAppState extends State<DoableApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: DoableApp.navigatorKey,
-      home: const HomePage(),
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
+    return ValueListenableBuilder<String>(
+      valueListenable: ConfigService.instance.localeNotifier,
+      builder: (_, __, ___) {
+        final config = ConfigService.instance;
+        final locale = config.effectiveLocale;
+        return MaterialApp(
+          navigatorKey: DoableApp.navigatorKey,
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          home: const HomePage(),
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
           //colors
           splashColor: Colors.transparent,
           focusColor: Colors.transparent,
@@ -167,14 +179,14 @@ class _DoableAppState extends State<DoableApp> {
                 fontWeight: FontWeight.normal,
                 color: Color(0xff565656)),
           )),
-
-      //routes
-      initialRoute: 'home',
-      routes: {
-        'home': (context) => const HomePage(),
-        'add_task': (context) => const AddTaskPage(),
-        'edit_task': (context) => const EditTaskPage(),
-        'settings': (context) => const SettingsPage(),
+          initialRoute: 'home',
+          routes: {
+            'home': (context) => const HomePage(),
+            'add_task': (context) => const AddTaskPage(),
+            'edit_task': (context) => const EditTaskPage(),
+            'settings': (context) => const SettingsPage(),
+          },
+        );
       },
     );
   }

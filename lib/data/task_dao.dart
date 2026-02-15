@@ -48,25 +48,25 @@ class TaskDao {
     return TaskEntity.fromMap(rows.first);
   }
 
-  /// 获取所有设置了动作的任务（action_type 非空）。
+  /// 获取所有设置了动作的任务（actions 非空或兼容旧 action_type）。
   static Future<List<TaskEntity>> getTasksWithActions() async {
     final db = await DatabaseService.instance();
     final rows = await db.query(
       table,
-      where: 'action_type IS NOT NULL AND action_type != ?',
-      whereArgs: [''],
+      where: "(actions IS NOT NULL AND actions != '' AND actions != '[]') "
+          "OR (action_type IS NOT NULL AND action_type != '')",
       orderBy: 'completed ASC, updated_at DESC, id DESC',
     );
     return rows.map(TaskEntity.fromMap).toList();
   }
 
-  /// 按动作类型筛选任务。
+  /// 按动作类型筛选任务（检查 actions JSON 或旧 action_type）。
   static Future<List<TaskEntity>> getTasksByActionType(String type) async {
     final db = await DatabaseService.instance();
     final rows = await db.query(
       table,
-      where: 'action_type = ?',
-      whereArgs: [type],
+      where: "actions LIKE ? OR action_type = ?",
+      whereArgs: ['%"type":"$type"%', type],
       orderBy: 'completed ASC, updated_at DESC, id DESC',
     );
     return rows.map(TaskEntity.fromMap).toList();

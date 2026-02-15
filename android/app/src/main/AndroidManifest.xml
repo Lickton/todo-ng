@@ -1,4 +1,35 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Android 11+ 包可见性：允许查询拨号、浏览器等以正确解析 Intent -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
+        <!-- 会议、地图、通讯等应用 scheme，供 canResolveActivity 查询 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="wemeet" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="zoommtg" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="dingtalk" />
+        </intent>
+    </queries>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>

@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 class DatabaseService {
   static const _dbName = 'doable.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
 
   static Database? _db;
 
@@ -29,7 +31,8 @@ class DatabaseService {
             updated_at TEXT,
             action_type TEXT,
             action_data TEXT,
-            action_target TEXT
+            action_target TEXT,
+            actions TEXT
           )
         ''');
       },
@@ -38,6 +41,30 @@ class DatabaseService {
           await db.execute('ALTER TABLE tasks ADD COLUMN action_type TEXT');
           await db.execute('ALTER TABLE tasks ADD COLUMN action_data TEXT');
           await db.execute('ALTER TABLE tasks ADD COLUMN action_target TEXT');
+        }
+        if (oldV < 3) {
+          await db.execute('ALTER TABLE tasks ADD COLUMN actions TEXT');
+          // 将旧版单动作迁移到 actions JSON
+          final rows = await db.query('tasks',
+              columns: ['id', 'action_type', 'action_data', 'action_target']);
+          for (final r in rows) {
+            final t = r['action_type'] as String?;
+            if (t != null && t.toString().trim().isNotEmpty) {
+              final list = [
+                {
+                  'type': t,
+                  'data': r['action_data'],
+                  'target': r['action_target'],
+                }
+              ];
+              await db.update(
+                'tasks',
+                {'actions': jsonEncode(list)},
+                where: 'id = ?',
+                whereArgs: [r['id']],
+              );
+            }
+          }
         }
       },
     );

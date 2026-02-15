@@ -5,77 +5,55 @@ import 'package:intl/intl.dart';
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
-import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/services/notification_service.dart';
+import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
 
-// Import Task view model from Home if you keep it there,
-// or duplicate the minimal fields you need here.
 import 'package:doable_todo_list_app/screens/home_page.dart' show Task;
 
-class EditTaskPage extends StatefulWidget {
-  const EditTaskPage({super.key});
+class TaskDetailSheet extends StatefulWidget {
+  const TaskDetailSheet({super.key, required this.task});
+
+  final Task task;
 
   @override
-  State<EditTaskPage> createState() => _EditTaskPageState();
+  State<TaskDetailSheet> createState() => _TaskDetailSheetState();
 }
 
-class _EditTaskPageState extends State<EditTaskPage> {
-  // Controllers
+class _TaskDetailSheetState extends State<TaskDetailSheet> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
 
-  // Incoming task to edit
   late Task _task;
 
-  // UI state
   bool _reminder = false;
-  String? _repeatRule; // "Daily" | "Weekly" | "Monthly" | "No repeat" | null
-  final Set<int> _repeatWeekdays = {}; // 1=Mon ... 7=Sun
+  String? _repeatRule;
+  final Set<int> _repeatWeekdays = {};
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
-  // Action (optional, supports multiple)
   List<ActionItem> _actions = [];
   bool _hasIncompleteAction = false;
 
-  // Style constants
-  static const Color blueColor = Color(0xFF2563EB); // button/active color
-
-  // Convenience paddings
-  EdgeInsets get _screenHPad {
-    final w = MediaQuery.of(context).size.width;
-    final hpad = (w * 0.05).clamp(16.0, 24.0);
-    return EdgeInsets.symmetric(horizontal: hpad);
-  }
+  static const Color _blueColor = Color(0xFF2563EB);
 
   @override
   void initState() {
     super.initState();
-    // Read arguments after first frame to ensure context is mounted
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final arg = ModalRoute.of(context)!.settings.arguments;
-      _task = arg as Task;
+    _task = widget.task;
 
-      // Prefill text
-      _titleCtrl.text = _task.title;
-      _descCtrl.text = _task.description ?? '';
+    _titleCtrl.text = _task.title;
+    _descCtrl.text = _task.description ?? '';
 
-      // Prefill toggles
-      _reminder = _task.hasNotification;
-      _repeatRule = _task.repeatRule;
-      _hydrateWeekdaysFromRule(_repeatRule);
+    _reminder = _task.hasNotification;
+    _repeatRule = _task.repeatRule;
+    _hydrateWeekdaysFromRule(_repeatRule);
 
-      // Prefill date/time (parse stored display strings)
-      _selectedDate = _parseDateOrNull(_task.date);
-      _selectedTime = _parseTimeOrNull(_task.time);
+    _selectedDate = _parseDateOrNull(_task.date);
+    _selectedTime = _parseTimeOrNull(_task.time);
 
-      // Prefill action
-      _actions = _task.actions ?? [];
-
-      setState(() {});
-    });
+    _actions = _task.actions ?? [];
   }
 
   @override
@@ -84,8 +62,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
     _descCtrl.dispose();
     super.dispose();
   }
-
-  // ===== Formatting / parsing =====
 
   String _formatDate(DateTime d) => DateFormat('dd/MM/yy').format(d);
 
@@ -113,14 +89,11 @@ class _EditTaskPageState extends State<EditTaskPage> {
     }
   }
 
-  // ===== Repeat helpers (Weekly day parsing/selection) =====
-
   void _hydrateWeekdaysFromRule(String? rule) {
     _repeatWeekdays.clear();
     if (rule == null) return;
     if (!rule.startsWith('Weekly')) return;
 
-    // Supports "Weekly:[1,2,3]" or "Weekly:1,2,3" or variants with spaces
     final exp = RegExp(r'(\d+)');
     for (final m in exp.allMatches(rule)) {
       final v = int.tryParse(m.group(1)!);
@@ -145,12 +118,10 @@ class _EditTaskPageState extends State<EditTaskPage> {
         _repeatWeekdays.add(weekday);
       }
       if (_repeatWeekdays.isNotEmpty) {
-        _repeatRule = 'Weekly'; // force Weekly if any day is picked
+        _repeatRule = 'Weekly';
       }
     });
   }
-
-  // ===== Pickers =====
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -159,7 +130,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
       initialDate: _selectedDate ?? now,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
-      helpText: 'Select date',
+      helpText: AppLocalizations.of(context)!.selectDate,
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
@@ -168,7 +139,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
-      helpText: 'Select time',
+      helpText: AppLocalizations.of(context)!.selectTime,
     );
     if (picked != null) setState(() => _selectedTime = picked);
   }
@@ -195,8 +166,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
     setState(() => _reminder = !_reminder);
   }
 
-  // ===== Save =====
-
   Future<void> _save() async {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
@@ -209,7 +178,9 @@ class _EditTaskPageState extends State<EditTaskPage> {
     if (_hasIncompleteAction) {
       final hasMeetingIncomplete = _actions.any((a) =>
           a.type == 'meeting' &&
-          (a.data == null || a.data!.trim().isEmpty || !MeetingUtils.hasValidMeetingData(a.data!)));
+          (a.data == null ||
+              a.data!.trim().isEmpty ||
+              !MeetingUtils.hasValidMeetingData(a.data!)));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -222,250 +193,265 @@ class _EditTaskPageState extends State<EditTaskPage> {
       return;
     }
 
-    // Build display strings
     final dateStr = _selectedDate != null ? _formatDate(_selectedDate!) : null;
     final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
 
-    // Build repeat rule string
     String? normalizedRepeat;
     if (_repeatRule == null || _repeatRule == 'No repeat') {
       normalizedRepeat = null;
     } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
-      final list = _repeatWeekdays.toList()..sort(); // 1..7 stable order
-      normalizedRepeat = 'Weekly:${list.toString()}'; // Weekly:[1,2,4]
+      final list = _repeatWeekdays.toList()..sort();
+      normalizedRepeat = 'Weekly:${list.toString()}';
     } else {
       normalizedRepeat = _repeatRule;
     }
 
-    final validActions = _actions.where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true)).toList();
+    final validActions = _actions
+        .where((a) =>
+            a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true))
+        .toList();
     final entity = TaskEntity(
-      id: _task.id, // required for update
+      id: _task.id,
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
       time: timeStr,
       date: dateStr,
       hasNotification: _reminder,
       repeatRule: normalizedRepeat,
-      completed: _task.completed, // preserve current completed state
+      completed: _task.completed,
       actions: validActions.isEmpty ? null : validActions,
     );
 
     await TaskRepository().update(entity);
 
-    if (mounted) Navigator.pop(context, true); // signal Home to refresh
+    if (mounted) Navigator.pop(context, true);
   }
 
   @override
   Widget build(BuildContext context) {
-    // 编辑模式：有 arguments 时需等待 addPostFrameCallback 加载任务数据后再渲染表单，
-    // 否则 ActionSelector 会在 initState 收到 null，导致已保存的动作无法正确回显
-    final hasArgs = ModalRoute.of(context)?.settings.arguments != null;
-    if (hasArgs && _titleCtrl.text.isEmpty) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    final initialSize = viewInsets > 0 ? 0.95 : 0.7;
 
-    final spacing = 16.0;
-    final bigSpacing = 24.0;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context, false),
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          tooltip: AppLocalizations.of(context)!.back,
-        ),
-        title: Text(
-          AppLocalizations.of(context)!.modifyTodo,
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: Colors.black,
+    return DraggableScrollableSheet(
+      initialChildSize: initialSize,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-        ),
-        centerTitle: false,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: _screenHPad.add(const EdgeInsets.only(bottom: 24, top: 8)),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Reminder button: blue bg + white icon/text when enabled
-              _ReminderButton(
-                enabled: _reminder,
-                onTap: _toggleReminder,
+              _buildDragHandle(),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: _buildContent(),
+                ),
               ),
-              SizedBox(height: bigSpacing),
-
-              _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
-              SizedBox(height: spacing),
-
-              _InputField(
-                controller: _titleCtrl,
-                hint: AppLocalizations.of(context)!.title,
-                textInputAction: TextInputAction.next,
-              ),
-              SizedBox(height: spacing),
-              _InputField(
-                controller: _descCtrl,
-                hint: AppLocalizations.of(context)!.description,
-                maxLines: 3,
-              ),
-              SizedBox(height: bigSpacing),
-
-              _FieldLabel(text: AppLocalizations.of(context)!.repeat),
-              SizedBox(height: spacing),
-
-              // Frequency chips
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.daily,
-                    selected: _repeatRule == 'Daily',
-                    onTap: () => _selectRepeatRule('Daily'),
-                  ),
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.weekly,
-                    selected: _repeatRule == 'Weekly',
-                    onTap: () => _selectRepeatRule('Weekly'),
-                  ),
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.monthly,
-                    selected: _repeatRule == 'Monthly',
-                    onTap: () => _selectRepeatRule('Monthly'),
-                  ),
-                  _RepeatChip(
-                    label: AppLocalizations.of(context)!.noRepeat,
-                    selected: _repeatRule == null || _repeatRule == 'No repeat',
-                    onTap: () => _selectRepeatRule('No repeat'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Weekday chips (always visible; applied when Weekly)
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.sunday,
-                    selected: _repeatWeekdays.contains(7),
-                    onTap: () => _toggleWeekday(7),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.monday,
-                    selected: _repeatWeekdays.contains(1),
-                    onTap: () => _toggleWeekday(1),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.tuesday,
-                    selected: _repeatWeekdays.contains(2),
-                    onTap: () => _toggleWeekday(2),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.wednesday,
-                    selected: _repeatWeekdays.contains(3),
-                    onTap: () => _toggleWeekday(3),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.thursday,
-                    selected: _repeatWeekdays.contains(4),
-                    onTap: () => _toggleWeekday(4),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.friday,
-                    selected: _repeatWeekdays.contains(5),
-                    onTap: () => _toggleWeekday(5),
-                  ),
-                  _WeekdayChip(
-                    label: AppLocalizations.of(context)!.saturday,
-                    selected: _repeatWeekdays.contains(6),
-                    onTap: () => _toggleWeekday(6),
-                  ),
-                ],
-              ),
-              SizedBox(height: bigSpacing),
-
-              // Action selector
-              ActionSelector(
-                showTitle: true,
-                initialActions: _actions,
-                onActionsChanged: (list) => setState(() => _actions = list),
-                onHasIncompleteChanged: (v) => setState(() => _hasIncompleteAction = v),
-              ),
-              SizedBox(height: bigSpacing),
-
-              _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
-              SizedBox(height: spacing),
-
-              // Date field with calendar icon
-              _PickerField(
-                hint: AppLocalizations.of(context)!.setDate,
-                valueText: _selectedDate != null ? _formatDate(_selectedDate!) : null,
-                iconAsset: 'assets/calendar.svg',
-                onTap: _pickDate,
-                onClear: _selectedDate != null
-                    ? () => setState(() => _selectedDate = null)
-                    : null,
-              ),
-              SizedBox(height: spacing),
-
-              // Time field with clock icon
-              _PickerField(
-                hint: AppLocalizations.of(context)!.setTime,
-                valueText: _selectedTime != null ? _formatTime(_selectedTime!) : null,
-                iconAsset: 'assets/clock.svg',
-                onTap: _pickTime,
-                onClear: _selectedTime != null
-                    ? () => setState(() => _selectedTime = null)
-                    : null,
-              ),
-              const SizedBox(height: 8),
             ],
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
 
-      // Bottom Save button with extra bottom padding (and safe area)
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 56,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
-              ),
-              onPressed: _save,
-              child: Text(AppLocalizations.of(context)!.save),
-            ),
+  Widget _buildDragHandle() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Center(
+        child: Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
       ),
     );
   }
-}
 
-/* ================= Reusable widgets ================= */
+  Widget _buildContent() {
+    const spacing = 16.0;
+    const bigSpacing = 24.0;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 8,
+        bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ReminderButton(
+            enabled: _reminder,
+            onTap: _toggleReminder,
+          ),
+          const SizedBox(height: bigSpacing),
+
+          _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
+          const SizedBox(height: spacing),
+
+          _InputField(
+            controller: _titleCtrl,
+            hint: AppLocalizations.of(context)!.title,
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: spacing),
+          _InputField(
+            controller: _descCtrl,
+            hint: AppLocalizations.of(context)!.description,
+            maxLines: 3,
+          ),
+          const SizedBox(height: bigSpacing),
+
+          _FieldLabel(text: AppLocalizations.of(context)!.repeat),
+          const SizedBox(height: spacing),
+
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _RepeatChip(
+                label: AppLocalizations.of(context)!.daily,
+                selected: _repeatRule == 'Daily',
+                onTap: () => _selectRepeatRule('Daily'),
+              ),
+              _RepeatChip(
+                label: AppLocalizations.of(context)!.weekly,
+                selected: _repeatRule == 'Weekly',
+                onTap: () => _selectRepeatRule('Weekly'),
+              ),
+              _RepeatChip(
+                label: AppLocalizations.of(context)!.monthly,
+                selected: _repeatRule == 'Monthly',
+                onTap: () => _selectRepeatRule('Monthly'),
+              ),
+              _RepeatChip(
+                label: AppLocalizations.of(context)!.noRepeat,
+                selected: _repeatRule == null || _repeatRule == 'No repeat',
+                onTap: () => _selectRepeatRule('No repeat'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.sunday,
+                selected: _repeatWeekdays.contains(7),
+                onTap: () => _toggleWeekday(7),
+              ),
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.monday,
+                selected: _repeatWeekdays.contains(1),
+                onTap: () => _toggleWeekday(1),
+              ),
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.tuesday,
+                selected: _repeatWeekdays.contains(2),
+                onTap: () => _toggleWeekday(2),
+              ),
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.wednesday,
+                selected: _repeatWeekdays.contains(3),
+                onTap: () => _toggleWeekday(3),
+              ),
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.thursday,
+                selected: _repeatWeekdays.contains(4),
+                onTap: () => _toggleWeekday(4),
+              ),
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.friday,
+                selected: _repeatWeekdays.contains(5),
+                onTap: () => _toggleWeekday(5),
+              ),
+              _WeekdayChip(
+                label: AppLocalizations.of(context)!.saturday,
+                selected: _repeatWeekdays.contains(6),
+                onTap: () => _toggleWeekday(6),
+              ),
+            ],
+          ),
+          const SizedBox(height: bigSpacing),
+
+          ActionSelector(
+            showTitle: true,
+            initialActions: _actions,
+            onActionsChanged: (list) => setState(() => _actions = list),
+            onHasIncompleteChanged: (v) =>
+                setState(() => _hasIncompleteAction = v),
+          ),
+          const SizedBox(height: bigSpacing),
+
+          _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
+          const SizedBox(height: spacing),
+
+          _PickerField(
+            hint: AppLocalizations.of(context)!.setDate,
+            valueText:
+                _selectedDate != null ? _formatDate(_selectedDate!) : null,
+            iconAsset: 'assets/calendar.svg',
+            onTap: _pickDate,
+            onClear: _selectedDate != null
+                ? () => setState(() => _selectedDate = null)
+                : null,
+          ),
+          const SizedBox(height: spacing),
+
+          _PickerField(
+            hint: AppLocalizations.of(context)!.setTime,
+            valueText:
+                _selectedTime != null ? _formatTime(_selectedTime!) : null,
+            iconAsset: 'assets/clock.svg',
+            onTap: _pickTime,
+            onClear: _selectedTime != null
+                ? () => setState(() => _selectedTime = null)
+                : null,
+          ),
+          const SizedBox(height: 24),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _blueColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  AppLocalizations.of(context)!.save,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+}
 
 class _FieldLabel extends StatelessWidget {
   const _FieldLabel({required this.text});
   final String text;
+
   @override
   Widget build(BuildContext context) {
     return Text(
@@ -526,9 +512,11 @@ class _ReminderButton extends StatelessWidget {
   final bool enabled;
   final VoidCallback onTap;
 
+  static const _blueColor = Color(0xFF2563EB);
+
   @override
   Widget build(BuildContext context) {
-    final bg = enabled ? _EditTaskPageState.blueColor : Colors.white;
+    final bg = enabled ? _blueColor : Colors.white;
     final fg = enabled ? Colors.white : Colors.black;
 
     return Align(
@@ -682,7 +670,7 @@ class _PickerField extends StatelessWidget {
                 height: 18,
                 width: 18,
                 colorFilter:
-                const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                    const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
               ),
               const SizedBox(width: 12),
               Expanded(

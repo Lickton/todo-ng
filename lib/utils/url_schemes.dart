@@ -20,8 +20,8 @@ class UrlSchemes {
 
   // ========== 会议平台 ==========
 
-  /// 腾讯会议：通过会议 ID 打开会议详情/加入页。
-  static const String TENCENT_MEETING = 'wemeet://page/detail?meeting_id=';
+  /// 腾讯会议：通过会议号加入会议。
+  static const String TENCENT_MEETING = 'wemeet://page/inmeeting?meeting_code=';
 
   /// Zoom：通过会议号加入会议。
   static const String ZOOM_MEETING = 'zoommtg://zoom.us/join?confno=';
@@ -48,7 +48,7 @@ class UrlSchemes {
     return GAODE_MAP + Uri.encodeComponent(address);
   }
 
-  /// 构建腾讯会议加入 URL。[meetingId] 为会议号或会议 ID。
+  /// 构建腾讯会议加入 URL。[meetingId] 为会议号。
   static String buildTencentMeetingUrl(String meetingId) {
     return TENCENT_MEETING + Uri.encodeComponent(meetingId.trim());
   }

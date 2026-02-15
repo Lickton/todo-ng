@@ -3,7 +3,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 
 // Data layer
+import 'package:doable_todo_list_app/l10n/app_localizations.dart';
+import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
+import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/services/notification_service.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
@@ -29,10 +32,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
   String? _repeatRule; // "Daily" | "Weekly" | "Monthly" | "No repeat" | null
   final Set<int> _repeatWeekdays = {}; // 1=Mon ... 7=Sun
 
-  // Action (optional)
-  String? _actionType;
-  String? _actionData;
-  String? _actionTarget;
+  // Action (optional, supports multiple)
+  List<ActionItem> _actions = [];
+  bool _hasIncompleteAction = false;
 
   // Colors (replace with Theme if preferred)
   static const Color blueColor = Color(0xFF2563EB); // Tailwind-ish blue-600
@@ -131,17 +133,23 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.pleaseEnterTitle)),
       );
       return;
     }
 
-    // 若选择了动作类型，必须填写动作数据
-    if (_actionType != null &&
-        _actionType!.isNotEmpty &&
-        (_actionData == null || _actionData!.trim().isEmpty)) {
+    if (_hasIncompleteAction) {
+      final hasMeetingIncomplete = _actions.any((a) =>
+          a.type == 'meeting' &&
+          (a.data == null || a.data!.trim().isEmpty || !MeetingUtils.hasValidMeetingData(a.data!)));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写动作内容或选择「无动作」')),
+        SnackBar(
+          content: Text(
+            hasMeetingIncomplete
+                ? AppLocalizations.of(context)!.meetingInvitationEmpty
+                : AppLocalizations.of(context)!.pleaseFillActionOrSelectNone,
+          ),
+        ),
       );
       return;
     }
@@ -160,6 +168,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       repeatRule = _repeatRule;
     }
 
+    final validActions = _actions.where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true)).toList();
     final entity = TaskEntity(
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
@@ -168,9 +177,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       hasNotification: _reminder,
       repeatRule: repeatRule,
       completed: false,
-      actionType: _actionType,
-      actionData: _actionData?.trim().isEmpty == true ? null : _actionData?.trim(),
-      actionTarget: _actionTarget?.trim().isEmpty == true ? null : _actionTarget?.trim(),
+      actions: validActions.isEmpty ? null : validActions,
     );
 
     await TaskRepository().add(entity);
@@ -199,10 +206,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
         leading: IconButton(
           onPressed: () => Navigator.pop(context, false),
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          tooltip: 'Back',
+          tooltip: AppLocalizations.of(context)!.back,
         ),
-        title: const Text(
-          'Create to-do',
+        title: Text(
+          AppLocalizations.of(context)!.createTodo,
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -225,23 +232,23 @@ class _AddTaskPageState extends State<AddTaskPage> {
               SizedBox(height: bigSpacing),
 
               // Title / Description
-              const _FieldLabel(text: 'Tell us about your task'),
+              _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
               SizedBox(height: spacing),
               _InputField(
                 controller: _titleCtrl,
-                hint: 'Title',
+                hint: AppLocalizations.of(context)!.title,
                 textInputAction: TextInputAction.next,
               ),
               SizedBox(height: spacing),
               _InputField(
                 controller: _descCtrl,
-                hint: 'Description',
+                hint: AppLocalizations.of(context)!.description,
                 maxLines: 3,
               ),
               SizedBox(height: bigSpacing),
 
               // Repeat section
-              const _FieldLabel(text: 'Repeat'),
+              _FieldLabel(text: AppLocalizations.of(context)!.repeat),
               SizedBox(height: spacing),
 
               // Frequency row (Daily / Weekly / Monthly / No repeat)
@@ -250,22 +257,22 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 runSpacing: 12,
                 children: [
                   _RepeatChip(
-                    label: 'Daily',
+                    label: AppLocalizations.of(context)!.daily,
                     selected: _repeatRule == 'Daily',
                     onTap: () => _selectRepeatRule('Daily'),
                   ),
                   _RepeatChip(
-                    label: 'Weekly',
+                    label: AppLocalizations.of(context)!.weekly,
                     selected: _repeatRule == 'Weekly',
                     onTap: () => _selectRepeatRule('Weekly'),
                   ),
                   _RepeatChip(
-                    label: 'Monthly',
+                    label: AppLocalizations.of(context)!.monthly,
                     selected: _repeatRule == 'Monthly',
                     onTap: () => _selectRepeatRule('Monthly'),
                   ),
                   _RepeatChip(
-                    label: 'No repeat',
+                    label: AppLocalizations.of(context)!.noRepeat,
                     selected: _repeatRule == null || _repeatRule == 'No repeat',
                     onTap: () => _selectRepeatRule('No repeat'),
                   ),
@@ -280,37 +287,37 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 runSpacing: 12,
                 children: [
                   _WeekdayChip(
-                    label: 'Sunday',
+                    label: AppLocalizations.of(context)!.sunday,
                     selected: _repeatWeekdays.contains(7),
                     onTap: () => _toggleWeekday(7),
                   ),
                   _WeekdayChip(
-                    label: 'Monday',
+                    label: AppLocalizations.of(context)!.monday,
                     selected: _repeatWeekdays.contains(1),
                     onTap: () => _toggleWeekday(1),
                   ),
                   _WeekdayChip(
-                    label: 'Tuesday',
+                    label: AppLocalizations.of(context)!.tuesday,
                     selected: _repeatWeekdays.contains(2),
                     onTap: () => _toggleWeekday(2),
                   ),
                   _WeekdayChip(
-                    label: 'Wednesday',
+                    label: AppLocalizations.of(context)!.wednesday,
                     selected: _repeatWeekdays.contains(3),
                     onTap: () => _toggleWeekday(3),
                   ),
                   _WeekdayChip(
-                    label: 'Thursday',
+                    label: AppLocalizations.of(context)!.thursday,
                     selected: _repeatWeekdays.contains(4),
                     onTap: () => _toggleWeekday(4),
                   ),
                   _WeekdayChip(
-                    label: 'Friday',
+                    label: AppLocalizations.of(context)!.friday,
                     selected: _repeatWeekdays.contains(5),
                     onTap: () => _toggleWeekday(5),
                   ),
                   _WeekdayChip(
-                    label: 'Saturday',
+                    label: AppLocalizations.of(context)!.saturday,
                     selected: _repeatWeekdays.contains(6),
                     onTap: () => _toggleWeekday(6),
                   ),
@@ -321,26 +328,19 @@ class _AddTaskPageState extends State<AddTaskPage> {
               // Action selector (after repeat, before date & time)
               ActionSelector(
                 showTitle: true,
-                initialActionType: _actionType,
-                initialActionData: _actionData,
-                initialActionTarget: _actionTarget,
-                onActionChanged: (type, data, target) {
-                  setState(() {
-                    _actionType = type;
-                    _actionData = data;
-                    _actionTarget = target;
-                  });
-                },
+                initialActions: _actions,
+                onActionsChanged: (list) => setState(() => _actions = list),
+                onHasIncompleteChanged: (v) => setState(() => _hasIncompleteAction = v),
               ),
               SizedBox(height: bigSpacing),
 
               // Date & Time
-              const _FieldLabel(text: 'Date & Time'),
+              _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
               SizedBox(height: spacing),
 
               // Date field
               _PickerField(
-                hint: 'Set date',
+                hint: AppLocalizations.of(context)!.setDate,
                 valueText: _selectedDate != null ? _formatDate(_selectedDate!) : null,
                 iconAsset: 'assets/calendar.svg',
                 onTap: _pickDate,
@@ -352,7 +352,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
               // Time field
               _PickerField(
-                hint: 'Set time',
+                hint: AppLocalizations.of(context)!.setTime,
                 valueText: _selectedTime != null ? _formatTime(_selectedTime!) : null,
                 iconAsset: 'assets/clock.svg',
                 onTap: _pickTime,
@@ -387,7 +387,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 ),
               ),
               onPressed: _save,
-              child: const Text('Save'),
+              child: Text(AppLocalizations.of(context)!.save),
             ),
           ),
         ),
@@ -483,7 +483,7 @@ class _ReminderButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Set Reminder',
+                  AppLocalizations.of(context)!.setReminder,
                   style: TextStyle(
                     color: fg,
                     fontWeight: FontWeight.w700,

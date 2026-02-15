@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart'; // for DateFormat [web:146][web:156]
 
+import 'package:doable_todo_list_app/l10n/app_localizations.dart';
+import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/widgets/action_button.dart';
+import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
 
 /// UI-facing model used on this page (mapped from DB rows).
 class Task {
@@ -17,9 +20,7 @@ class Task {
     this.hasNotification = false,
     this.repeatRule,
     this.completed = false,
-    this.actionType,
-    this.actionData,
-    this.actionTarget,
+    this.actions,
   });
 
   final int id;
@@ -30,9 +31,7 @@ class Task {
   bool hasNotification;
   String? repeatRule; // e.g., "Daily", "Weekly", "Monthly", "Weekly:[1,2,4]"
   bool completed;
-  String? actionType;
-  String? actionData;
-  String? actionTarget;
+  List<ActionItem>? actions;
 }
 
 class HomePage extends StatefulWidget {
@@ -121,9 +120,7 @@ class _HomePageState extends State<HomePage> {
       hasNotification: e.hasNotification,
       repeatRule: e.repeatRule,
       completed: e.completed,
-      actionType: e.actionType,
-      actionData: e.actionData,
-      actionTarget: e.actionTarget,
+      actions: e.actions,
     ))
         .toList();
 
@@ -174,7 +171,7 @@ class _HomePageState extends State<HomePage> {
                 initialDate: _fltDate ?? now,
                 firstDate: DateTime(now.year - 1),
                 lastDate: DateTime(now.year + 5),
-                helpText: 'Select date',
+                helpText: AppLocalizations.of(context)!.selectDate,
               );
               if (picked != null) setSheetState(() => _fltDate = picked);
             }
@@ -183,7 +180,7 @@ class _HomePageState extends State<HomePage> {
               final picked = await showTimePicker(
                 context: context,
                 initialTime: _fltTime ?? TimeOfDay.now(),
-                helpText: 'Select time',
+                helpText: AppLocalizations.of(context)!.selectTime,
               );
               if (picked != null) setSheetState(() => _fltTime = picked);
             }
@@ -229,73 +226,73 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 16),
 
-                      const Text('Date & Time',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                      Text(AppLocalizations.of(context)!.dateAndTime,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
                       const SizedBox(height: 12),
 
                       _PickerRow(
                         icon: Icons.calendar_today,
-                        label: _fltDate != null ? _fmtDate(_fltDate!) : 'Set date',
+                        label: _fltDate != null ? _fmtDate(_fltDate!) : AppLocalizations.of(context)!.setDate,
                         onTap: pickDate,
                         onClear: _fltDate != null ? () => setSheetState(() => _fltDate = null) : null,
                       ),
                       const SizedBox(height: 12),
                       _PickerRow(
                         icon: Icons.access_time,
-                        label: _fltTime != null ? _fmtTime(_fltTime!) : 'Set time',
+                        label: _fltTime != null ? _fmtTime(_fltTime!) : AppLocalizations.of(context)!.setTime,
                         onTap: pickTime,
                         onClear: _fltTime != null ? () => setSheetState(() => _fltTime = null) : null,
                       ),
 
                       const SizedBox(height: 20),
-                      const Text('Completion Status',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                      Text(AppLocalizations.of(context)!.completionStatus,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          chip('Completed', _fltCompleted == true,
+                          chip(AppLocalizations.of(context)!.completed, _fltCompleted == true,
                                   () => setSheetState(() => _fltCompleted = true)),
-                          chip('Incomplete', _fltCompleted == false,
+                          chip(AppLocalizations.of(context)!.incomplete, _fltCompleted == false,
                                   () => setSheetState(() => _fltCompleted = false)),
-                          chip('Any', _fltCompleted == null,
+                          chip(AppLocalizations.of(context)!.any, _fltCompleted == null,
                                   () => setSheetState(() => _fltCompleted = null)),
                         ],
                       ),
 
                       const SizedBox(height: 20),
-                      const Text('Repeat',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                      Text(AppLocalizations.of(context)!.repeat,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          chip('Daily', _fltRepeat == 'Daily',
+                          chip(AppLocalizations.of(context)!.daily, _fltRepeat == 'Daily',
                                   () => setSheetState(() => _fltRepeat = 'Daily')),
-                          chip('Weekly', _fltRepeat == 'Weekly',
+                          chip(AppLocalizations.of(context)!.weekly, _fltRepeat == 'Weekly',
                                   () => setSheetState(() => _fltRepeat = 'Weekly')),
-                          chip('Monthly', _fltRepeat == 'Monthly',
+                          chip(AppLocalizations.of(context)!.monthly, _fltRepeat == 'Monthly',
                                   () => setSheetState(() => _fltRepeat = 'Monthly')),
-                          chip('No repeat', _fltRepeat == null,
+                          chip(AppLocalizations.of(context)!.noRepeat, _fltRepeat == null,
                                   () => setSheetState(() => _fltRepeat = null)),
                         ],
                       ),
 
                       const SizedBox(height: 20),
-                      const Text('Reminders',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                      Text(AppLocalizations.of(context)!.reminders,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          chip('On', _fltReminder == true,
+                          chip(AppLocalizations.of(context)!.on, _fltReminder == true,
                                   () => setSheetState(() => _fltReminder = true)),
-                          chip('Off', _fltReminder == false,
+                          chip(AppLocalizations.of(context)!.off, _fltReminder == false,
                                   () => setSheetState(() => _fltReminder = false)),
-                          chip('Any', _fltReminder == null,
+                          chip(AppLocalizations.of(context)!.any, _fltReminder == null,
                                   () => setSheetState(() => _fltReminder = null)),
                         ],
                       ),
@@ -319,7 +316,7 @@ class _HomePageState extends State<HomePage> {
                             Navigator.pop(context); // close sheet
                             setState(() {}); // apply filters to list
                           },
-                          child: const Text('Apply Filter'),
+                          child: Text(AppLocalizations.of(context)!.applyFilter),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -334,7 +331,7 @@ class _HomePageState extends State<HomePage> {
                               _fltReminder = null;
                             });
                           },
-                          child: const Text('Clear selections'),
+                          child: Text(AppLocalizations.of(context)!.clearSelections),
                         ),
                       ),
                     ],
@@ -374,7 +371,7 @@ class _HomePageState extends State<HomePage> {
                       IconButton(
                         iconSize: 28,
                         splashRadius: 28,
-                        tooltip: 'Settings',
+                        tooltip: AppLocalizations.of(context)!.settings,
                         onPressed: _openSettings,
                         icon: const Icon(Icons.menu, color: Colors.black87),
                       ),
@@ -385,8 +382,8 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Text(
-                        'Today',
+                      Text(
+                        AppLocalizations.of(context)!.today,
                         style: TextStyle(
                           color: Colors.black,
                           fontWeight: FontWeight.w800,
@@ -398,7 +395,7 @@ class _HomePageState extends State<HomePage> {
                       ConstrainedBox(
                         constraints: const BoxConstraints(minWidth: 96, minHeight: 48),
                         child: _FilterChipButton(
-                          label: 'Filter',
+                          label: AppLocalizations.of(context)!.filter,
                           onTap: _openFilterSheet, // open bottom sheet
                           height: 36,
                         ),
@@ -429,10 +426,12 @@ class _HomePageState extends State<HomePage> {
                 onDismissed: (_) => _delete(task),
                 child: InkWell(
                   onTap: () async {
-                    final result = await Navigator.pushNamed(
-                      context,
-                      'edit_task',
-                      arguments: task,
+                    final result = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      barrierColor: Colors.black54,
+                      builder: (context) => TaskDetailSheet(task: task),
                     );
                     if (result == true) await _load();
                   },
@@ -556,9 +555,7 @@ class _TaskTile extends StatelessWidget {
       hasNotification: task.hasNotification,
       repeatRule: task.repeatRule,
       completed: task.completed,
-      actionType: task.actionType,
-      actionData: task.actionData,
-      actionTarget: task.actionTarget,
+      actions: task.actions,
     );
 
     return Padding(
@@ -580,14 +577,12 @@ class _TaskTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       )
                     : _IncompleteContent(task: task, titleStyle: titleStyle),
-                if (task.actionType != null && task.actionType!.isNotEmpty)
+                if (task.actions != null && task.actions!.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: TaskActionButton(
+                    child: TaskActionButtons(
                       task: taskEntity,
-                      onActionExecuted: () {
-                        // 可选: 记录执行次数等
-                      },
+                      onActionExecuted: () {},
                     ),
                   ),
               ],

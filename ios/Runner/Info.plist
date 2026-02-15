@@ -41,8 +41,19 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>wemeet</string>
+		<string>zoommtg</string>
+		<string>dingtalk</string>
+		<string>amapuri</string>
+		<string>iosamap</string>
+		<string>baidumap</string>
+		<string>weixin</string>
+		<string>mqq</string>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
+		<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 </dict>

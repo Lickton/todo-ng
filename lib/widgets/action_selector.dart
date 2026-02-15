@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
-/// 动作类型选项：无动作、导航、电话、网页、会议、消息。
-const List<_ActionTypeOption> _kActionTypeOptions = [
-  _ActionTypeOption(value: null, label: '无动作'),
-  _ActionTypeOption(value: 'navigation', label: '📍 导航'),
-  _ActionTypeOption(value: 'phone', label: '📞 电话'),
-  _ActionTypeOption(value: 'web', label: '🌐 网页'),
-  _ActionTypeOption(value: 'meeting', label: '🎥 会议'),
-  _ActionTypeOption(value: 'message', label: '💬 消息'),
-];
+import 'package:doable_todo_list_app/l10n/app_localizations.dart';
+import 'package:doable_todo_list_app/models/action_item.dart';
+import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 
 class _ActionTypeOption {
   const _ActionTypeOption({this.value, required this.label});
@@ -16,31 +11,39 @@ class _ActionTypeOption {
   final String label;
 }
 
-/// 中国手机号正则：1 开头，第二位 3-9，共 11 位数字。
-final RegExp _chinaPhoneRegExp = RegExp(r'^1[3-9]\d{9}$');
+List<_ActionTypeOption> _buildActionTypeOptions(BuildContext context) {
+  final l10n = AppLocalizations.of(context)!;
+  return [
+    _ActionTypeOption(value: null, label: l10n.actionTypeNoAction),
+    _ActionTypeOption(value: 'navigation', label: '📍 ${l10n.actionTypeNavigation}'),
+    _ActionTypeOption(value: 'phone', label: '📞 ${l10n.actionTypePhone}'),
+    _ActionTypeOption(value: 'web', label: '🌐 ${l10n.actionTypeWeb}'),
+    _ActionTypeOption(value: 'meeting', label: '🎥 ${l10n.actionTypeMeeting}'),
+    _ActionTypeOption(value: 'message', label: '💬 ${l10n.actionTypeMessage}'),
+  ];
+}
 
-/// http/https URL 前缀。
+final RegExp _chinaPhoneRegExp = RegExp(r'^1[3-9]\d{9}$');
 bool _isValidUrl(String s) {
   final t = s.trim();
   return t.startsWith('http://') || t.startsWith('https://');
 }
 
-/// 动作选择器：选择类型并填写对应 data/target，通过 [onActionChanged] 回传。
+/// 动作选择器：支持添加多个动作，通过 [onActionsChanged] 回传。
 class ActionSelector extends StatefulWidget {
   const ActionSelector({
     super.key,
     this.showTitle = true,
-    this.initialActionType,
-    this.initialActionData,
-    this.initialActionTarget,
-    required this.onActionChanged,
+    this.initialActions = const [],
+    required this.onActionsChanged,
+    this.onHasIncompleteChanged,
   });
 
   final bool showTitle;
-  final String? initialActionType;
-  final String? initialActionData;
-  final String? initialActionTarget;
-  final void Function(String? type, String? data, String? target) onActionChanged;
+  final List<ActionItem> initialActions;
+  final void Function(List<ActionItem>) onActionsChanged;
+  /// 当存在已选类型但数据未填完整的动作时为 true，用于保存前校验。
+  final void Function(bool hasIncomplete)? onHasIncompleteChanged;
 
   @override
   State<ActionSelector> createState() => _ActionSelectorState();
@@ -50,108 +53,88 @@ class _ActionSelectorState extends State<ActionSelector> {
   static const double kRadius = 16;
   static const Color kBlue = Color(0xFF2563EB);
 
-  late String? _actionType;
-  late TextEditingController _dataController;
-  late TextEditingController _targetController;
-  String? _phoneError;
-  String? _urlError;
-  String? _requiredError;
+  late List<_ActionSlot> _slots;
 
   @override
   void initState() {
     super.initState();
-    _actionType = widget.initialActionType;
-    _dataController = TextEditingController(text: widget.initialActionData ?? '');
-    _targetController = TextEditingController(text: widget.initialActionTarget ?? '');
+    _slots = widget.initialActions.isEmpty
+        ? [_ActionSlot()]
+        : widget.initialActions.map((a) => _ActionSlot.fromItem(a)).toList();
     WidgetsBinding.instance.addPostFrameCallback((_) => _notifyChanged());
   }
 
   @override
   void didUpdateWidget(ActionSelector oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialActionType != widget.initialActionType ||
-        oldWidget.initialActionData != widget.initialActionData ||
-        oldWidget.initialActionTarget != widget.initialActionTarget) {
-      _actionType = widget.initialActionType;
-      _dataController.text = widget.initialActionData ?? '';
-      _targetController.text = widget.initialActionTarget ?? '';
-      _clearErrors();
-      _notifyChanged();
+    // 仅当外部真正传入不同的初始数据时才同步（如编辑页加载任务时）。
+    // 若新 initialActions 与当前 slots 产出一致，说明是父组件回传我们的数据，跳过 sync 避免输入时重建导致焦点丢失。
+    if (_listEquals(oldWidget.initialActions, widget.initialActions)) return;
+    final ourCurrentList = _slots.map((s) => s.toItemOrPartial()).toList();
+    if (_listEquals(widget.initialActions, ourCurrentList)) return;
+    _syncFromInitial();
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) => _notifyChanged());
+  }
+
+  static bool _listEquals(List<ActionItem> a, List<ActionItem> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i], y = b[i];
+      if (x.type != y.type || x.data != y.data || x.target != y.target) return false;
     }
+    return true;
+  }
+
+  void _syncFromInitial() {
+    for (final s in _slots) {
+      s.dispose();
+    }
+    _slots = widget.initialActions.isEmpty
+        ? [_ActionSlot()]
+        : widget.initialActions.map((a) => _ActionSlot.fromItem(a)).toList();
   }
 
   @override
   void dispose() {
-    _dataController.dispose();
-    _targetController.dispose();
+    for (final s in _slots) {
+      s.dispose();
+    }
     super.dispose();
   }
 
-  void _clearErrors() {
-    _phoneError = null;
-    _urlError = null;
-    _requiredError = null;
+  void _addAction() {
+    setState(() => _slots.add(_ActionSlot()));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _notifyChanged());
+  }
+
+  void _removeAt(int index) {
+    if (_slots.length > 1) {
+      _slots[index].dispose();
+      setState(() => _slots.removeAt(index));
+    } else {
+      // 只剩一个时，重置为默认值
+      _slots[index].resetToDefault();
+      setState(() {});
+    }
+    _notifyChanged();
   }
 
   void _notifyChanged() {
     if (!mounted) return;
-    final type = _actionType;
-    if (type == null || type.isEmpty) {
-      widget.onActionChanged(null, null, null);
-      return;
+    final list = <ActionItem>[];
+    bool hasIncomplete = false;
+    for (final s in _slots) {
+      list.add(s.toItemOrPartial());
+      if (s.type != null && s.type!.isNotEmpty && s.toItem() == null) {
+        hasIncomplete = true;
+      }
     }
-    final data = _dataController.text.trim();
-    final target = _targetController.text.trim();
-    String? dataToSend = data.isEmpty ? null : data;
-    String? targetToSend = target.isEmpty ? null : target;
-    if (type == 'phone' && dataToSend != null && !_chinaPhoneRegExp.hasMatch(dataToSend)) {
-      dataToSend = null;
-    }
-    if (type == 'web' && dataToSend != null && !_isValidUrl(dataToSend)) {
-      dataToSend = null;
-    }
-    widget.onActionChanged(type, dataToSend, targetToSend);
+    widget.onActionsChanged(list);
+    widget.onHasIncompleteChanged?.call(hasIncomplete);
   }
 
-  void _onTypeChanged(String? value) {
-    setState(() {
-      _actionType = value;
-      _dataController.clear();
-      _targetController.clear();
-      if (value == 'navigation') _targetController.text = 'gaode';
-      if (value == 'meeting') _targetController.text = 'tencent';
-      _clearErrors();
-      _notifyChanged();
-    });
-  }
-
-  void _onDataChanged() {
-    setState(() {
-      _phoneError = null;
-      _urlError = null;
-      _requiredError = null;
-      if (_actionType == 'phone') {
-        final t = _dataController.text.trim();
-        if (t.isNotEmpty && !_chinaPhoneRegExp.hasMatch(t)) {
-          _phoneError = '请输入正确的中国手机号（11 位）';
-        }
-      }
-      if (_actionType == 'web') {
-        final t = _dataController.text.trim();
-        if (t.isNotEmpty && !_isValidUrl(t)) {
-          _urlError = '请输入以 http:// 或 https:// 开头的网址';
-        }
-      }
-      if (_actionType != null && _actionType!.isNotEmpty) {
-        if (_dataController.text.trim().isEmpty) {
-          _requiredError = '请填写内容';
-        }
-      }
-      _notifyChanged();
-    });
-  }
-
-  Widget _buildFieldLabel(String text) {
+  Widget _buildFieldLabel(BuildContext context, String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
@@ -165,12 +148,14 @@ class _ActionSelectorState extends State<ActionSelector> {
     );
   }
 
-  Widget _buildTextField({
+  Widget _buildTextField(
+    BuildContext context, {
     required TextEditingController controller,
     required String hint,
     String? errorText,
     int maxLines = 1,
     TextInputType? keyboardType,
+    required VoidCallback onChanged,
   }) {
     return TextField(
       controller: controller,
@@ -200,12 +185,11 @@ class _ActionSelectorState extends State<ActionSelector> {
         ),
       ),
       style: const TextStyle(fontSize: 14, height: 1.4),
-      onChanged: (_) => _onDataChanged(),
+      onChanged: (_) => onChanged(),
     );
   }
 
   Widget _buildDropdown<T>({
-    required String label,
     required T? value,
     required List<DropdownMenuItem<T>> items,
     required void Function(T?) onChanged,
@@ -231,141 +215,150 @@ class _ActionSelectorState extends State<ActionSelector> {
     );
   }
 
-  Widget _buildNavigationFields() {
-    const targets = ['gaode', 'baidu', 'google'];
-    final current = _targetController.text.trim().isEmpty ? 'gaode' : _targetController.text.trim();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('目的地地址'),
-        _buildTextField(
-          controller: _dataController,
-          hint: '输入地址',
-          errorText: _requiredError,
-        ),
-        const SizedBox(height: 16),
-        _buildFieldLabel('导航应用'),
-        _buildDropdown<String>(
-          label: '导航应用',
-          value: targets.contains(current) ? current : 'gaode',
-          items: targets.map((t) {
-            final name = t == 'gaode' ? '高德' : (t == 'baidu' ? '百度' : '谷歌');
-            return DropdownMenuItem(value: t, child: Text(name));
-          }).toList(),
-          onChanged: (v) {
-            if (v != null) {
-              _targetController.text = v;
-              setState(() => _notifyChanged());
-            }
-          },
-        ),
-      ],
-    );
-  }
+  Widget _buildSlotContent(BuildContext context, _ActionSlot slot, int index) {
+    final l10n = AppLocalizations.of(context)!;
 
-  Widget _buildPhoneFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('电话号码'),
-        _buildTextField(
-          controller: _dataController,
-          hint: '请输入中国手机号',
-          errorText: _phoneError ?? _requiredError,
-          keyboardType: TextInputType.phone,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWebFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('网页地址'),
-        _buildTextField(
-          controller: _dataController,
-          hint: 'https://',
-          errorText: _urlError ?? _requiredError,
-          keyboardType: TextInputType.url,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMeetingFields() {
-    const platforms = ['tencent', 'zoom', 'dingtalk'];
-    final current = _targetController.text.trim().isEmpty ? 'tencent' : _targetController.text.trim();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('会议号或会议链接'),
-        _buildTextField(
-          controller: _dataController,
-          hint: '会议号或完整链接',
-          errorText: _requiredError,
-        ),
-        const SizedBox(height: 16),
-        _buildFieldLabel('会议平台'),
-        _buildDropdown<String>(
-          label: '平台',
-          value: platforms.contains(current) ? current : 'tencent',
-          items: const [
-            DropdownMenuItem(value: 'tencent', child: Text('腾讯会议')),
-            DropdownMenuItem(value: 'zoom', child: Text('Zoom')),
-            DropdownMenuItem(value: 'dingtalk', child: Text('钉钉')),
-          ],
-          onChanged: (v) {
-            if (v != null) {
-              _targetController.text = v;
-              setState(() => _notifyChanged());
-            }
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMessageFields() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildFieldLabel('消息内容'),
-        _buildTextField(
-          controller: _dataController,
-          hint: '预设消息文本',
-          errorText: _requiredError,
-          maxLines: 3,
-        ),
-        const SizedBox(height: 16),
-        _buildFieldLabel('联系人（可选）'),
-        _buildTextField(
-          controller: _targetController,
-          hint: '联系人标识',
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContentByType() {
-    switch (_actionType) {
-      case 'navigation':
-        return _buildNavigationFields();
-      case 'phone':
-        return _buildPhoneFields();
-      case 'web':
-        return _buildWebFields();
-      case 'meeting':
-        return _buildMeetingFields();
-      case 'message':
-        return _buildMessageFields();
-      default:
-        return const SizedBox.shrink();
+    void onDataChanged() {
+      setState(() {});
+      _notifyChanged();
     }
+
+    void onTypeChanged(String? value) {
+      setState(() {
+        slot.type = value;
+        slot.dataController.clear();
+        slot.targetController.clear();
+        if (value == 'navigation') slot.targetController.text = 'gaode';
+        if (value == 'meeting') slot.targetController.text = 'tencent';
+      });
+      _notifyChanged();
+    }
+
+    if (slot.type == null || slot.type!.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildFieldLabel(context, l10n.actionType),
+          _buildDropdown<String?>(
+            value: slot.type,
+            items: _buildActionTypeOptions(context)
+                .map((o) => DropdownMenuItem<String?>(value: o.value, child: Text(o.label)))
+                .toList(),
+            onChanged: (v) => onTypeChanged(v),
+          ),
+        ],
+      );
+    }
+
+    Widget content;
+    switch (slot.type) {
+      case 'navigation':
+        const targets = ['gaode', 'baidu', 'google'];
+        final current = slot.targetController.text.trim().isEmpty ? 'gaode' : slot.targetController.text.trim();
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFieldLabel(context, l10n.destinationAddress),
+            _buildTextField(context, controller: slot.dataController, hint: l10n.inputAddress, errorText: slot.hasRequiredError ? l10n.pleaseFillContent : null, onChanged: onDataChanged),
+            const SizedBox(height: 16),
+            _buildFieldLabel(context, l10n.navApp),
+            _buildDropdown<String>(
+              value: targets.contains(current) ? current : 'gaode',
+              items: targets.map((t) {
+                final name = t == 'gaode' ? l10n.gaode : (t == 'baidu' ? l10n.baidu : l10n.google);
+                return DropdownMenuItem(value: t, child: Text(name));
+              }).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  slot.targetController.text = v;
+                  onDataChanged();
+                }
+              },
+            ),
+          ],
+        );
+        break;
+      case 'phone':
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFieldLabel(context, l10n.phoneNumber),
+            _buildTextField(context, controller: slot.dataController, hint: l10n.phoneNumberHint, errorText: slot.hasPhoneError ? l10n.phoneError : (slot.hasRequiredError ? l10n.pleaseFillContent : null), keyboardType: TextInputType.phone, onChanged: onDataChanged),
+          ],
+        );
+        break;
+      case 'web':
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFieldLabel(context, l10n.webUrl),
+            _buildTextField(context, controller: slot.dataController, hint: 'https://', errorText: slot.hasUrlError ? l10n.urlError : (slot.hasRequiredError ? l10n.pleaseFillContent : null), keyboardType: TextInputType.url, onChanged: onDataChanged),
+          ],
+        );
+        break;
+      case 'meeting':
+        const platforms = ['tencent', 'zoom', 'dingtalk'];
+        final current = slot.targetController.text.trim().isEmpty ? 'tencent' : slot.targetController.text.trim();
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFieldLabel(context, l10n.meetingIdOrLink),
+            _buildTextField(context, controller: slot.dataController, hint: l10n.meetingIdOrLinkHint, errorText: slot.hasMeetingError ? l10n.meetingInvitationEmpty : null, onChanged: onDataChanged),
+            const SizedBox(height: 16),
+            _buildFieldLabel(context, l10n.meetingPlatform),
+            _buildDropdown<String>(
+              value: platforms.contains(current) ? current : 'tencent',
+              items: [
+                DropdownMenuItem(value: 'tencent', child: Text(l10n.tencentMeeting)),
+                DropdownMenuItem(value: 'zoom', child: Text(l10n.zoom)),
+                DropdownMenuItem(value: 'dingtalk', child: Text(l10n.dingtalk)),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  slot.targetController.text = v;
+                  onDataChanged();
+                }
+              },
+            ),
+          ],
+        );
+        break;
+      case 'message':
+        content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFieldLabel(context, l10n.messageContent),
+            _buildTextField(context, controller: slot.dataController, hint: l10n.messageContentHint, errorText: slot.hasRequiredError ? l10n.pleaseFillContent : null, maxLines: 3, onChanged: onDataChanged),
+            const SizedBox(height: 16),
+            _buildFieldLabel(context, l10n.contactOptional),
+            _buildTextField(context, controller: slot.targetController, hint: l10n.contactHint, onChanged: onDataChanged),
+          ],
+        );
+        break;
+      default:
+        content = const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel(context, l10n.actionType),
+        _buildDropdown<String?>(
+          value: slot.type,
+          items: _buildActionTypeOptions(context)
+              .map((o) => DropdownMenuItem<String?>(value: o.value, child: Text(o.label)))
+              .toList(),
+          onChanged: (v) => onTypeChanged(v),
+        ),
+        const SizedBox(height: 16),
+        content,
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8),
       elevation: 0,
@@ -379,45 +372,150 @@ class _ActionSelectorState extends State<ActionSelector> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (widget.showTitle) ...[
-              const Text(
-                '添加动作',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
+              Text(
+                l10n.addAction,
+                style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 16),
               ),
               const SizedBox(height: 16),
             ],
-            _buildFieldLabel('动作类型'),
-            DropdownButtonFormField<String?>(
-              value: _actionType,
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
+            ...List.generate(_slots.length, (i) {
+              final canRemove = true; // 始终可删除：多个时移除，单个时重置为默认
+              final slotCard = Card(
+                margin: EdgeInsets.zero,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(kRadius),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                  side: BorderSide(color: Colors.grey.shade300),
                 ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(kRadius),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildSlotContent(context, _slots[i], i),
+                ),
+              );
+              final content = canRemove
+                  ? ClipRect(
+                      child: Slidable(
+                        key: ValueKey('action_slot_$i'),
+                        endActionPane: ActionPane(
+                          motion: const ScrollMotion(),
+                          extentRatio: 0.25,
+                          children: [
+                            CustomSlidableAction(
+                              onPressed: (_) => _removeAt(i),
+                              backgroundColor: Colors.red.shade400,
+                              foregroundColor: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              child: const Icon(Icons.delete_outline, size: 24),
+                            ),
+                          ],
+                        ),
+                        child: slotCard,
+                      ),
+                    )
+                  : slotCard;
+              return Padding(
+                padding: EdgeInsets.only(bottom: i < _slots.length - 1 ? 12 : 0),
+                child: content,
+              );
+            }),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _addAction,
+                icon: const Icon(Icons.add, size: 20),
+                label: Text(l10n.addAnotherAction),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: kBlue,
+                  side: const BorderSide(color: kBlue),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
-              items: _kActionTypeOptions
-                  .map((o) => DropdownMenuItem<String?>(value: o.value, child: Text(o.label)))
-                  .toList(),
-              onChanged: _onTypeChanged,
-              isExpanded: true,
             ),
-            if (_actionType != null && _actionType!.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _buildContentByType(),
-            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// 单个动作槽：持有 type、dataController、targetController，以及校验逻辑。
+class _ActionSlot {
+  _ActionSlot() {
+    dataController = TextEditingController();
+    targetController = TextEditingController();
+  }
+
+  _ActionSlot.fromItem(ActionItem a) {
+    type = a.type.isNotEmpty ? a.type : null;
+    dataController = TextEditingController(text: a.data ?? '');
+    targetController = TextEditingController(text: a.target ?? '');
+    if (type == 'navigation' && targetController.text.isEmpty) targetController.text = 'gaode';
+    if (type == 'meeting' && targetController.text.isEmpty) targetController.text = 'tencent';
+  }
+
+  String? type;
+  late TextEditingController dataController;
+  late TextEditingController targetController;
+
+  bool get hasPhoneError {
+    if (type != 'phone') return false;
+    final t = dataController.text.trim();
+    return t.isNotEmpty && !_chinaPhoneRegExp.hasMatch(t);
+  }
+
+  bool get hasUrlError {
+    if (type != 'web') return false;
+    final t = dataController.text.trim();
+    return t.isNotEmpty && !_isValidUrl(t);
+  }
+
+  /// 会议类型：数据为空或既无会议号也无 URL 时为 true。
+  bool get hasMeetingError {
+    if (type != 'meeting') return false;
+    final t = dataController.text.trim();
+    return t.isEmpty || !MeetingUtils.hasValidMeetingData(t);
+  }
+
+  bool get hasRequiredError =>
+      type != null && type!.isNotEmpty && dataController.text.trim().isEmpty;
+
+  /// 重置为默认值：无类型、清空数据。
+  void resetToDefault() {
+    type = null;
+    dataController.clear();
+    targetController.clear();
+  }
+
+  void dispose() {
+    dataController.dispose();
+    targetController.dispose();
+  }
+
+  ActionItem? toItem() {
+    if (type == null || type!.isEmpty) return null;
+    final data = dataController.text.trim();
+    if (data.isEmpty) return null;
+    if (type == 'phone' && !_chinaPhoneRegExp.hasMatch(data)) return null;
+    if (type == 'web' && !_isValidUrl(data)) return null;
+    if (type == 'meeting' && !MeetingUtils.hasValidMeetingData(data)) return null;
+    return ActionItem(
+      type: type!,
+      data: data,
+      target: targetController.text.trim().isEmpty ? null : targetController.text.trim(),
+    );
+  }
+
+  /// 返回当前槽位的完整状态（含未完成、空槽），用于与父组件同步，避免输入时因 sync 丢失焦点和内容。
+  ActionItem toItemOrPartial() {
+    if (type == null || type!.isEmpty) {
+      return const ActionItem(type: '', data: null, target: null);
+    }
+    return ActionItem(
+      type: type!,
+      data: dataController.text,
+      target: targetController.text.isEmpty ? null : targetController.text,
     );
   }
 }
