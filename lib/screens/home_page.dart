@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart'; // for DateFormat [web:146][web:156]
 
+import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
+import 'package:doable_todo_list_app/widgets/action_button.dart';
 
 /// UI-facing model used on this page (mapped from DB rows).
 class Task {
@@ -545,6 +547,20 @@ class _TaskTile extends StatelessWidget {
       color: isDone ? Colors.blueGrey : Colors.black,
     );
 
+    final taskEntity = TaskEntity(
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      time: task.time,
+      date: task.date,
+      hasNotification: task.hasNotification,
+      repeatRule: task.repeatRule,
+      completed: task.completed,
+      actionType: task.actionType,
+      actionData: task.actionData,
+      actionTarget: task.actionTarget,
+    );
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Row(
@@ -553,14 +569,29 @@ class _TaskTile extends StatelessWidget {
           _CircleCheck(completed: isDone, onTap: onToggle),
           const SizedBox(width: 12),
           Expanded(
-            child: isDone
-                ? Text(
-              task.title,
-              style: titleStyle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-                : _IncompleteContent(task: task, titleStyle: titleStyle),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                isDone
+                    ? Text(
+                        task.title,
+                        style: titleStyle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : _IncompleteContent(task: task, titleStyle: titleStyle),
+                if (task.actionType != null && task.actionType!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: TaskActionButton(
+                      task: taskEntity,
+                      onActionExecuted: () {
+                        // 可选: 记录执行次数等
+                      },
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
