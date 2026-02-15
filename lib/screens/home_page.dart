@@ -15,6 +15,9 @@ class Task {
     this.hasNotification = false,
     this.repeatRule,
     this.completed = false,
+    this.actionType,
+    this.actionData,
+    this.actionTarget,
   });
 
   final int id;
@@ -25,6 +28,9 @@ class Task {
   bool hasNotification;
   String? repeatRule; // e.g., "Daily", "Weekly", "Monthly", "Weekly:[1,2,4]"
   bool completed;
+  String? actionType;
+  String? actionData;
+  String? actionTarget;
 }
 
 class HomePage extends StatefulWidget {
@@ -113,6 +119,9 @@ class _HomePageState extends State<HomePage> {
       hasNotification: e.hasNotification,
       repeatRule: e.repeatRule,
       completed: e.completed,
+      actionType: e.actionType,
+      actionData: e.actionData,
+      actionTarget: e.actionTarget,
     ))
         .toList();
 

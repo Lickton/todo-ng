@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/services/notification_service.dart';
+import 'package:doable_todo_list_app/widgets/action_selector.dart';
 
 class AddTaskPage extends StatefulWidget {
   const AddTaskPage({super.key});
@@ -27,6 +28,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
   // Repeat selections
   String? _repeatRule; // "Daily" | "Weekly" | "Monthly" | "No repeat" | null
   final Set<int> _repeatWeekdays = {}; // 1=Mon ... 7=Sun
+
+  // Action (optional)
+  String? _actionType;
+  String? _actionData;
+  String? _actionTarget;
 
   // Colors (replace with Theme if preferred)
   static const Color blueColor = Color(0xFF2563EB); // Tailwind-ish blue-600
@@ -130,6 +136,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
       return;
     }
 
+    // 若选择了动作类型，必须填写动作数据
+    if (_actionType != null &&
+        _actionType!.isNotEmpty &&
+        (_actionData == null || _actionData!.trim().isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写动作内容或选择「无动作」')),
+      );
+      return;
+    }
+
     // Build display strings (store as plain TEXT in DB)
     final dateStr = _selectedDate != null ? _formatDate(_selectedDate!) : null;
     final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
@@ -152,6 +168,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
       hasNotification: _reminder,
       repeatRule: repeatRule,
       completed: false,
+      actionType: _actionType,
+      actionData: _actionData?.trim().isEmpty == true ? null : _actionData?.trim(),
+      actionTarget: _actionTarget?.trim().isEmpty == true ? null : _actionTarget?.trim(),
     );
 
     await TaskRepository().add(entity);
@@ -296,6 +315,22 @@ class _AddTaskPageState extends State<AddTaskPage> {
                     onTap: () => _toggleWeekday(6),
                   ),
                 ],
+              ),
+              SizedBox(height: bigSpacing),
+
+              // Action selector (after repeat, before date & time)
+              ActionSelector(
+                showTitle: true,
+                initialActionType: _actionType,
+                initialActionData: _actionData,
+                initialActionTarget: _actionTarget,
+                onActionChanged: (type, data, target) {
+                  setState(() {
+                    _actionType = type;
+                    _actionData = data;
+                    _actionTarget = target;
+                  });
+                },
               ),
               SizedBox(height: bigSpacing),
 

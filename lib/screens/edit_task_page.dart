@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/services/notification_service.dart';
+import 'package:doable_todo_list_app/widgets/action_selector.dart';
 
 // Import Task view model from Home if you keep it there,
 // or duplicate the minimal fields you need here.
@@ -31,6 +32,11 @@ class _EditTaskPageState extends State<EditTaskPage> {
   final Set<int> _repeatWeekdays = {}; // 1=Mon ... 7=Sun
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+
+  // Action (optional)
+  String? _actionType;
+  String? _actionData;
+  String? _actionTarget;
 
   // Style constants
   static const Color blueColor = Color(0xFF2563EB); // button/active color
@@ -62,6 +68,11 @@ class _EditTaskPageState extends State<EditTaskPage> {
       // Prefill date/time (parse stored display strings)
       _selectedDate = _parseDateOrNull(_task.date);
       _selectedTime = _parseTimeOrNull(_task.time);
+
+      // Prefill action
+      _actionType = _task.actionType;
+      _actionData = _task.actionData;
+      _actionTarget = _task.actionTarget;
 
       setState(() {});
     });
@@ -195,6 +206,16 @@ class _EditTaskPageState extends State<EditTaskPage> {
       return;
     }
 
+    // 若选择了动作类型，必须填写动作数据
+    if (_actionType != null &&
+        _actionType!.isNotEmpty &&
+        (_actionData == null || _actionData!.trim().isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写动作内容或选择「无动作」')),
+      );
+      return;
+    }
+
     // Build display strings
     final dateStr = _selectedDate != null ? _formatDate(_selectedDate!) : null;
     final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
@@ -219,11 +240,22 @@ class _EditTaskPageState extends State<EditTaskPage> {
       hasNotification: _reminder,
       repeatRule: normalizedRepeat,
       completed: _task.completed, // preserve current completed state
+      actionType: _actionType,
+      actionData: _actionData?.trim().isEmpty == true ? null : _actionData?.trim(),
+      actionTarget: _actionTarget?.trim().isEmpty == true ? null : _actionTarget?.trim(),
     );
 
     await TaskRepository().update(entity);
 
     if (mounted) Navigator.pop(context, true); // signal Home to refresh
+  }
+
+  void _clearAction() {
+    setState(() {
+      _actionType = null;
+      _actionData = null;
+      _actionTarget = null;
+    });
   }
 
   @override
@@ -360,6 +392,36 @@ class _EditTaskPageState extends State<EditTaskPage> {
                   ),
                 ],
               ),
+              SizedBox(height: bigSpacing),
+
+              // Action selector
+              ActionSelector(
+                showTitle: true,
+                initialActionType: _actionType,
+                initialActionData: _actionData,
+                initialActionTarget: _actionTarget,
+                onActionChanged: (type, data, target) {
+                  setState(() {
+                    _actionType = type;
+                    _actionData = data;
+                    _actionTarget = target;
+                  });
+                },
+              ),
+              if (_actionType != null && _actionType!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _clearAction,
+                    icon: const Icon(Icons.clear, size: 18),
+                    label: const Text('移除动作'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.black54,
+                    ),
+                  ),
+                ),
+              ],
               SizedBox(height: bigSpacing),
 
               const _FieldLabel(text: 'Date & Time'),
