@@ -103,7 +103,12 @@ class _ActionSelectorState extends State<ActionSelector> {
     super.dispose();
   }
 
+  /// 只要有一个槽位为「无动作」，就不可添加新动作
+  bool get _canAddAction =>
+      _slots.every((s) => s.type != null && s.type!.isNotEmpty);
+
   void _addAction() {
+    if (!_canAddAction) return;
     setState(() => _slots.add(_ActionSlot()));
     WidgetsBinding.instance.addPostFrameCallback((_) => _notifyChanged());
   }
@@ -230,6 +235,7 @@ class _ActionSelectorState extends State<ActionSelector> {
         slot.targetController.clear();
         if (value == 'navigation') slot.targetController.text = 'gaode';
         if (value == 'meeting') slot.targetController.text = 'tencent';
+        if (value == 'web') slot.dataController.text = 'https://';
       });
       _notifyChanged();
     }
@@ -423,7 +429,7 @@ class _ActionSelectorState extends State<ActionSelector> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _addAction,
+                onPressed: _canAddAction ? _addAction : null,
                 icon: const Icon(Icons.add, size: 20),
                 label: Text(l10n.addAnotherAction),
                 style: OutlinedButton.styleFrom(
@@ -449,7 +455,10 @@ class _ActionSlot {
 
   _ActionSlot.fromItem(ActionItem a) {
     type = a.type.isNotEmpty ? a.type : null;
-    dataController = TextEditingController(text: a.data ?? '');
+    final data = a.data?.trim() ?? '';
+    dataController = TextEditingController(
+      text: type == 'web' && data.isEmpty ? 'https://' : data,
+    );
     targetController = TextEditingController(text: a.target ?? '');
     if (type == 'navigation' && targetController.text.isEmpty) targetController.text = 'gaode';
     if (type == 'meeting' && targetController.text.isEmpty) targetController.text = 'tencent';

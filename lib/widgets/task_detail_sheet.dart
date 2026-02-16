@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -10,6 +11,7 @@ import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
+import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -43,6 +45,12 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   List<ActionItem> _actions = [];
   bool _hasIncompleteAction = false;
 
+  /// 全屏 Markdown 编辑打开时隐藏主保存按钮
+  bool _isFullscreenMarkdown = false;
+
+  /// 保存前触发，将描述区内联未暂存内容同步到 controller
+  final _descFlushRequested = ValueNotifier<int>(0);
+
   static const Color _blueColor = Color(0xFF2563EB);
 
   @override
@@ -51,7 +59,14 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     _task = widget.task;
 
     _titleCtrl.text = _task.title;
-    _descCtrl.text = _task.description ?? '';
+    final desc = _task.description ?? '';
+    _descCtrl.text = desc;
+    if (kDebugMode && desc.isNotEmpty) {
+      final hasTrailingSpaces = desc.contains('  \n') || desc.endsWith('  ');
+      debugPrint('[TaskDetailSheet] 加载 description 长度=${desc.length}, '
+          '含行尾双空格=$hasTrailingSpaces, '
+          'repr=${desc.replaceAll('\n', '\\n').replaceAll(' ', '·')}');
+    }
 
     _reminder = _task.hasNotification;
     _reminderTime = _task.reminderTime;
@@ -67,6 +82,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   @override
   void dispose() {
+    _descFlushRequested.dispose();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
@@ -131,6 +147,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   }
 
   Future<void> _save() async {
+    _descFlushRequested.value++;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -184,10 +201,18 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         .where((a) =>
             a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true))
         .toList();
+    final desc = _descCtrl.text.trim().isEmpty ? null : _descCtrl.text;
+    if (kDebugMode && desc != null) {
+      // 调试：验证行尾两个空格是否被保留（Markdown 换行）
+      final hasTrailingSpaces = desc.contains('  \n') || desc.endsWith('  ');
+      debugPrint('[TaskDetailSheet] 保存 description 长度=${desc.length}, '
+          '含行尾双空格=$hasTrailingSpaces, '
+          'repr=${desc.replaceAll('\n', '\\n').replaceAll(' ', '·')}');
+    }
     final entity = TaskEntity(
       id: _task.id,
       title: title,
-      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      description: desc,
       time: timeStr,
       date: dateStr,
       hasNotification: _reminder,
@@ -198,7 +223,10 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       actions: validActions.isEmpty ? null : validActions,
     );
 
-    await TaskRepository().update(entity);
+    final rowsUpdated = await TaskRepository().update(entity);
+    if (kDebugMode) {
+      debugPrint('[TaskDetailSheet] update 返回 rowsUpdated=$rowsUpdated');
+    }
 
     if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
@@ -247,10 +275,43 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                   child: _buildContent(),
                 ),
               ),
+              if (!_isFullscreenMarkdown) _buildSaveButton(),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSaveButton() {
+    final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + viewInsets),
+        child: SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton(
+            onPressed: _save,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _blueColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              AppLocalizations.of(context)!.save,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -285,19 +346,23 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
+          _FieldLabel(text: AppLocalizations.of(context)!.taskLabel),
           const SizedBox(height: spacing),
-
           _InputField(
             controller: _titleCtrl,
             hint: AppLocalizations.of(context)!.title,
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: spacing),
-          _InputField(
+          _FieldLabel(text: AppLocalizations.of(context)!.description),
+          const SizedBox(height: spacing),
+          DescriptionMarkdownField(
             controller: _descCtrl,
-            hint: AppLocalizations.of(context)!.description,
-            maxLines: 3,
+            hintText: AppLocalizations.of(context)!.description,
+            onChanged: () => setState(() {}),
+            onFullscreenChanged: (v) =>
+                setState(() => _isFullscreenMarkdown = v),
+            flushRequested: _descFlushRequested,
           ),
           const SizedBox(height: bigSpacing),
 
@@ -346,33 +411,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
             onSystemAlarmChanged: Platform.isAndroid
                 ? (v) => setState(() => _useSystemAlarm = v)
                 : null,
-          ),
-          const SizedBox(height: 24),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _blueColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  AppLocalizations.of(context)!.save,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
           ),
           const SizedBox(height: 100),
         ],

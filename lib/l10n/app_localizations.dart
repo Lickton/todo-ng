@@ -452,6 +452,18 @@ abstract class AppLocalizations {
   /// **'Tell us about your task'**
   String get tellUsAboutTask;
 
+  /// No description provided for @taskLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Task'**
+  String get taskLabel;
+
+  /// No description provided for @taskInputHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell me about your task'**
+  String get taskInputHint;
+
   /// No description provided for @title.
   ///
   /// In en, this message translates to:
@@ -511,6 +523,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save'**
   String get save;
+
+  /// No description provided for @saveDraft.
+  ///
+  /// In en, this message translates to:
+  /// **'Save draft'**
+  String get saveDraft;
 
   /// No description provided for @pleaseEnterTitle.
   ///
@@ -955,6 +973,216 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add via system alarm app'**
   String get useSystemAlarmFallback;
+
+  /// No description provided for @markdownSyntaxHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Markdown Syntax'**
+  String get markdownSyntaxHint;
+
+  /// No description provided for @markdownHintBold.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get markdownHintBold;
+
+  /// No description provided for @markdownHintItalic.
+  ///
+  /// In en, this message translates to:
+  /// **'Italic'**
+  String get markdownHintItalic;
+
+  /// No description provided for @markdownHintHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading'**
+  String get markdownHintHeading;
+
+  /// No description provided for @markdownHintList.
+  ///
+  /// In en, this message translates to:
+  /// **'Unordered list'**
+  String get markdownHintList;
+
+  /// No description provided for @markdownHintTask.
+  ///
+  /// In en, this message translates to:
+  /// **'Task item'**
+  String get markdownHintTask;
+
+  /// No description provided for @markdownHintLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get markdownHintLink;
+
+  /// No description provided for @draftFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Draft found'**
+  String get draftFound;
+
+  /// No description provided for @draftLoadPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Load unsaved content?'**
+  String get draftLoadPrompt;
+
+  /// No description provided for @ignore.
+  ///
+  /// In en, this message translates to:
+  /// **'Ignore'**
+  String get ignore;
+
+  /// No description provided for @load.
+  ///
+  /// In en, this message translates to:
+  /// **'Load'**
+  String get load;
+
+  /// No description provided for @editDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit description'**
+  String get editDescription;
+
+  /// No description provided for @edit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get edit;
+
+  /// No description provided for @preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get preview;
+
+  /// No description provided for @markdownHintStrikethrough.
+  ///
+  /// In en, this message translates to:
+  /// **'Strikethrough'**
+  String get markdownHintStrikethrough;
+
+  /// No description provided for @markdownHintQuote.
+  ///
+  /// In en, this message translates to:
+  /// **'Quote'**
+  String get markdownHintQuote;
+
+  /// No description provided for @markdownHintCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Code'**
+  String get markdownHintCode;
+
+  /// No description provided for @markdownHintOrderedList.
+  ///
+  /// In en, this message translates to:
+  /// **'Ordered list'**
+  String get markdownHintOrderedList;
+
+  /// No description provided for @markdownHintTable.
+  ///
+  /// In en, this message translates to:
+  /// **'Table'**
+  String get markdownHintTable;
+
+  /// No description provided for @markdownHintImage.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get markdownHintImage;
+
+  /// No description provided for @insertTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Insert template'**
+  String get insertTemplate;
+
+  /// No description provided for @meetingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Meeting notes'**
+  String get meetingNotes;
+
+  /// No description provided for @todoList.
+  ///
+  /// In en, this message translates to:
+  /// **'Todo list'**
+  String get todoList;
+
+  /// No description provided for @dailyLog.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily log'**
+  String get dailyLog;
+
+  /// No description provided for @markdownHintPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Supports Markdown syntax...\n\n# Heading\n**Bold** *Italic*\n- List item\n- [ ] Task'**
+  String get markdownHintPlaceholder;
+
+  /// No description provided for @previewEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'# Preview\n\nNo content'**
+  String get previewEmpty;
+
+  /// No description provided for @characterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} characters'**
+  String characterCount(int count);
+
+  /// No description provided for @done.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
+
+  /// No description provided for @fullscreenEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen edit'**
+  String get fullscreenEdit;
+
+  /// No description provided for @taskReminder.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Reminder'**
+  String get taskReminder;
+
+  /// No description provided for @notificationChannelName.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Reminders'**
+  String get notificationChannelName;
+
+  /// No description provided for @notificationChannelDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders for your tasks'**
+  String get notificationChannelDescription;
+
+  /// No description provided for @templateMeetingNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'## Meeting notes\n\n**Time**: {time}\n**Participants**: \n\n### Agenda\n- \n\n### Decisions\n- \n\n### Action items\n- [ ] \n'**
+  String templateMeetingNotes(String time);
+
+  /// No description provided for @templateTodoList.
+  ///
+  /// In en, this message translates to:
+  /// **'## Todo list\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3\n'**
+  String get templateTodoList;
+
+  /// No description provided for @templateDailyLog.
+  ///
+  /// In en, this message translates to:
+  /// **'## {date} Log\n\n### Done\n- \n\n### In progress\n- \n\n### Planned\n- \n'**
+  String templateDailyLog(String date);
 }
 
 class _AppLocalizationsDelegate

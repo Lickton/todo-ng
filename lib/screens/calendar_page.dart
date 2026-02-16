@@ -654,29 +654,13 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      style: TextStyle(
-                        fontSize: 16,
-                        decoration:
-                            task.completed ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    if (task.description?.isNotEmpty ?? false)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          task.description!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                  ],
+                child: Text(
+                  task.title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    decoration:
+                        task.completed ? TextDecoration.lineThrough : null,
+                  ),
                 ),
               ),
             ],

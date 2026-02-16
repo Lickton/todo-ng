@@ -64,6 +64,8 @@
   "modifyTodo": "Modify to-do",
   "setReminder": "Set Reminder",
   "tellUsAboutTask": "Tell us about your task",
+  "taskLabel": "Task",
+  "taskInputHint": "Tell me about your task",
   "title": "Title",
   "description": "Description",
   "sunday": "Sunday",
@@ -74,6 +76,7 @@
   "friday": "Friday",
   "saturday": "Saturday",
   "save": "Save",
+  "saveDraft": "Save draft",
   "pleaseEnterTitle": "Please enter a title",
   "pleaseFillActionOrSelectNone": "Please fill in the action content or select \"No action\"",
   "actionOpened": "Opened {action}",
@@ -177,5 +180,55 @@
   "systemAlarmPermissionTitle": "Alarm permission required",
   "systemAlarmPermissionMessage": "To add alarms silently, please go to Settings -> Privacy/Security -> Special app access -> Alarms & reminders to grant permission.",
   "goToSettings": "Go to Settings",
-  "useSystemAlarmFallback": "Add via system alarm app"
+  "useSystemAlarmFallback": "Add via system alarm app",
+  "markdownSyntaxHint": "Markdown Syntax",
+  "markdownHintBold": "Bold",
+  "markdownHintItalic": "Italic",
+  "markdownHintHeading": "Heading",
+  "markdownHintList": "Unordered list",
+  "markdownHintTask": "Task item",
+  "markdownHintLink": "Link",
+  "draftFound": "Draft found",
+  "draftLoadPrompt": "Load unsaved content?",
+  "ignore": "Ignore",
+  "load": "Load",
+  "editDescription": "Edit description",
+  "edit": "Edit",
+  "preview": "Preview",
+  "markdownHintStrikethrough": "Strikethrough",
+  "markdownHintQuote": "Quote",
+  "markdownHintCode": "Code",
+  "markdownHintOrderedList": "Ordered list",
+  "markdownHintTable": "Table",
+  "markdownHintImage": "Image",
+  "insertTemplate": "Insert template",
+  "meetingNotes": "Meeting notes",
+  "todoList": "Todo list",
+  "dailyLog": "Daily log",
+  "markdownHintPlaceholder": "Supports Markdown syntax...\n\n# Heading\n**Bold** *Italic*\n- List item\n- [ ] Task",
+  "previewEmpty": "# Preview\n\nNo content",
+  "characterCount": "{count} characters",
+  "@characterCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "done": "Done",
+  "fullscreenEdit": "Fullscreen edit",
+  "taskReminder": "Task Reminder",
+  "notificationChannelName": "Task Reminders",
+  "notificationChannelDescription": "Reminders for your tasks",
+  "templateMeetingNotes": "## Meeting notes\n\n**Time**: {time}\n**Participants**: \n\n### Agenda\n- \n\n### Decisions\n- \n\n### Action items\n- [ ] \n",
+  "@templateMeetingNotes": {
+    "placeholders": {
+      "time": {"type": "String"}
+    }
+  },
+  "templateTodoList": "## Todo list\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3\n",
+  "templateDailyLog": "## {date} Log\n\n### Done\n- \n\n### In progress\n- \n\n### Planned\n- \n",
+  "@templateDailyLog": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  }
 }

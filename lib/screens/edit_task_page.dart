@@ -9,6 +9,7 @@ import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
+import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
@@ -46,6 +47,12 @@ class _EditTaskPageState extends State<EditTaskPage> {
   // Action (optional, supports multiple)
   List<ActionItem> _actions = [];
   bool _hasIncompleteAction = false;
+
+  /// 全屏 Markdown 编辑打开时隐藏主保存按钮
+  bool _isFullscreenMarkdown = false;
+
+  /// 保存前触发，将描述区内联未暂存内容同步到 controller
+  final _descFlushRequested = ValueNotifier<int>(0);
 
   // Style constants
   static const Color blueColor = Color(0xFF2563EB); // button/active color
@@ -89,6 +96,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
 
   @override
   void dispose() {
+    _descFlushRequested.dispose();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
@@ -159,6 +167,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
   // ===== Save =====
 
   Future<void> _save() async {
+    _descFlushRequested.value++;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -211,7 +220,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
     final entity = TaskEntity(
       id: _task.id, // required for update
       title: title,
-      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
       time: timeStr,
       date: dateStr,
       hasNotification: _reminder,
@@ -282,23 +291,30 @@ class _EditTaskPageState extends State<EditTaskPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: _screenHPad.add(const EdgeInsets.only(bottom: 24, top: 8)),
+          padding: _screenHPad.add(EdgeInsets.only(
+            bottom: _isFullscreenMarkdown ? 24 : 120,
+            top: 8,
+          )),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
+              _FieldLabel(text: AppLocalizations.of(context)!.taskLabel),
               SizedBox(height: spacing),
-
               _InputField(
                 controller: _titleCtrl,
                 hint: AppLocalizations.of(context)!.title,
                 textInputAction: TextInputAction.next,
               ),
               SizedBox(height: spacing),
-              _InputField(
+              _FieldLabel(text: AppLocalizations.of(context)!.description),
+              SizedBox(height: spacing),
+              DescriptionMarkdownField(
                 controller: _descCtrl,
-                hint: AppLocalizations.of(context)!.description,
-                maxLines: 3,
+                hintText: AppLocalizations.of(context)!.description,
+                onChanged: () => setState(() {}),
+                onFullscreenChanged: (v) =>
+                    setState(() => _isFullscreenMarkdown = v),
+                flushRequested: _descFlushRequested,
               ),
               SizedBox(height: bigSpacing),
 
@@ -355,31 +371,37 @@ class _EditTaskPageState extends State<EditTaskPage> {
         ),
       ),
 
-      // Bottom Save button with extra bottom padding (and safe area)
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 56,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
+      bottomNavigationBar: _isFullscreenMarkdown
+          ? null
+          : Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                32 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 56,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    onPressed: _save,
+                    child: Text(AppLocalizations.of(context)!.save),
+                  ),
                 ),
               ),
-              onPressed: _save,
-              child: Text(AppLocalizations.of(context)!.save),
             ),
-          ),
-        ),
-      ),
     );
   }
 }

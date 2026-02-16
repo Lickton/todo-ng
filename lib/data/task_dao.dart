@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/task_entity.dart';
 import 'database_service.dart';
@@ -14,7 +15,18 @@ class TaskDao {
   static Future<int> update(TaskEntity t) async {
     final db = await DatabaseService.instance();
     t.updatedAt = DateTime.now().toIso8601String();
-    return db.update(table, t.toMap(), where: 'id = ?', whereArgs: [t.id]);
+    final m = Map<String, dynamic>.from(t.toMap());
+    m.remove('id'); // 不更新主键
+    if (kDebugMode) {
+      final d = m['description'] as String?;
+      debugPrint('[TaskDao.update] id=${t.id}, description长度=${d?.length ?? 0}, '
+          'rowsUpdated将返回...');
+    }
+    final rows = await db.update(table, m, where: 'id = ?', whereArgs: [t.id]);
+    if (kDebugMode) {
+      debugPrint('[TaskDao.update] 实际更新行数=$rows');
+    }
+    return rows;
   }
 
   static Future<int> toggleCompleted(int id, bool value) async {

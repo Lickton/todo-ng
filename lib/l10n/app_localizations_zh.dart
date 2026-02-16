@@ -188,6 +188,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get tellUsAboutTask => '告诉我们你的任务';
 
   @override
+  String get taskLabel => '任务';
+
+  @override
+  String get taskInputHint => '告诉我你的任务';
+
+  @override
   String get title => '标题';
 
   @override
@@ -216,6 +222,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get save => '保存';
+
+  @override
+  String get saveDraft => '暂存';
 
   @override
   String get pleaseEnterTitle => '请输入标题';
@@ -451,4 +460,117 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get useSystemAlarmFallback => '使用系统界面添加';
+
+  @override
+  String get markdownSyntaxHint => 'Markdown 语法提示';
+
+  @override
+  String get markdownHintBold => '粗体文字';
+
+  @override
+  String get markdownHintItalic => '斜体文字';
+
+  @override
+  String get markdownHintHeading => '一级标题';
+
+  @override
+  String get markdownHintList => '无序列表';
+
+  @override
+  String get markdownHintTask => '待办事项';
+
+  @override
+  String get markdownHintLink => '超链接';
+
+  @override
+  String get draftFound => '发现草稿';
+
+  @override
+  String get draftLoadPrompt => '是否加载上次未保存的内容?';
+
+  @override
+  String get ignore => '忽略';
+
+  @override
+  String get load => '加载';
+
+  @override
+  String get editDescription => '编辑描述';
+
+  @override
+  String get edit => '编辑';
+
+  @override
+  String get preview => '预览';
+
+  @override
+  String get markdownHintStrikethrough => '删除线';
+
+  @override
+  String get markdownHintQuote => '引用';
+
+  @override
+  String get markdownHintCode => '代码';
+
+  @override
+  String get markdownHintOrderedList => '有序列表';
+
+  @override
+  String get markdownHintTable => '表格';
+
+  @override
+  String get markdownHintImage => '图片';
+
+  @override
+  String get insertTemplate => '插入模板';
+
+  @override
+  String get meetingNotes => '会议记录';
+
+  @override
+  String get todoList => '待办清单';
+
+  @override
+  String get dailyLog => '日志模板';
+
+  @override
+  String get markdownHintPlaceholder =>
+      '支持 Markdown 语法...\n\n# 标题\n**粗体** *斜体*\n- 列表项\n- [ ] 待办事项';
+
+  @override
+  String get previewEmpty => '# 预览\n\n暂无内容';
+
+  @override
+  String characterCount(int count) {
+    return '$count 字符';
+  }
+
+  @override
+  String get done => '完成';
+
+  @override
+  String get fullscreenEdit => '全屏编辑';
+
+  @override
+  String get taskReminder => '任务提醒';
+
+  @override
+  String get notificationChannelName => '任务提醒';
+
+  @override
+  String get notificationChannelDescription => '任务提醒通知';
+
+  @override
+  String templateMeetingNotes(String time) {
+    return '## 会议记录\n\n**时间**: $time\n**参与者**: \n\n### 议题\n- \n\n### 决议\n- \n\n### 待办事项\n- [ ] \n';
+  }
+
+  @override
+  String get templateTodoList =>
+      '## 待办清单\n\n- [ ] 任务 1\n- [ ] 任务 2\n- [ ] 任务 3\n';
+
+  @override
+  String templateDailyLog(String date) {
+    return '## $date 日志\n\n### 完成\n- \n\n### 进行中\n- \n\n### 计划\n- \n';
+  }
 }

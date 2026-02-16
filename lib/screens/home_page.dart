@@ -247,6 +247,7 @@ class _HomePageState extends State<HomePage> {
                       _PickerRow(
                         icon: Icons.calendar_today,
                         label: _fltDate != null ? _fmtDate(_fltDate!) : AppLocalizations.of(context)!.setDate,
+                        hasValue: _fltDate != null,
                         onTap: pickDate,
                         onClear: _fltDate != null ? () => setSheetState(() => _fltDate = null) : null,
                       ),
@@ -254,6 +255,7 @@ class _HomePageState extends State<HomePage> {
                       _PickerRow(
                         icon: Icons.access_time,
                         label: _fltTime != null ? _fmtTime(_fltTime!) : AppLocalizations.of(context)!.setTime,
+                        hasValue: _fltTime != null,
                         onTap: pickTime,
                         onClear: _fltTime != null ? () => setSheetState(() => _fltTime = null) : null,
                       ),
@@ -623,20 +625,6 @@ class _IncompleteContent extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        if ((task.description ?? '').isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 2.0, right: 8),
-            child: Text(
-              task.description!,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.4,
-                color: Colors.blueGrey.shade700,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
         if (meta.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8.0),
@@ -703,18 +691,19 @@ class _PickerRow extends StatelessWidget {
   const _PickerRow({
     required this.icon,
     required this.label,
+    required this.hasValue,
     required this.onTap,
     this.onClear,
   });
 
   final IconData icon;
   final String label;
+  final bool hasValue;
   final VoidCallback onTap;
   final VoidCallback? onClear;
 
   @override
   Widget build(BuildContext context) {
-    final hasValue = label != 'Set date' && label != 'Set time';
     return Material(
       color: Colors.white,
       shape: RoundedRectangleBorder(
@@ -742,7 +731,7 @@ class _PickerRow extends StatelessWidget {
               ),
               if (hasValue && onClear != null)
                 IconButton(
-                  tooltip: 'Clear',
+                  tooltip: AppLocalizations.of(context)!.clear,
                   icon: const Icon(Icons.close, size: 20, color: Colors.black54),
                   onPressed: onClear,
                 ),

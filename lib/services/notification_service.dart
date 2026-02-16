@@ -1,8 +1,13 @@
+import 'dart:ui';
+
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../l10n/app_localizations.dart';
 import '../models/task_entity.dart';
+import '../services/config_service.dart';
 
 class NotificationService {
   static const String channelKey = 'task_reminders';
@@ -80,11 +85,14 @@ class NotificationService {
         return;
       }
 
+      final locale = ConfigService.instance.effectiveLocale ??
+          PlatformDispatcher.instance.locale;
+      final l10n = lookupAppLocalizations(locale);
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
           id: task.id ?? DateTime.now().millisecondsSinceEpoch ~/ 1000, // Use timestamp if ID is null
           channelKey: channelKey,
-          title: 'Task Reminder',
+          title: l10n.taskReminder,
           body: task.title,
           category: NotificationCategory.Reminder,
           wakeUpScreen: true,
@@ -138,13 +146,16 @@ class NotificationService {
 
   /// Initialize notifications
   static Future<void> initializeNotifications() async {
+    final locale = ConfigService.instance.effectiveLocale ??
+        PlatformDispatcher.instance.locale;
+    final l10n = lookupAppLocalizations(locale);
     await AwesomeNotifications().initialize(
       null, // Use default icon
       [
         NotificationChannel(
           channelKey: channelKey,
-          channelName: 'Task Reminders',
-          channelDescription: 'Reminders for your tasks',
+          channelName: l10n.notificationChannelName,
+          channelDescription: l10n.notificationChannelDescription,
           defaultColor: const Color(0xFF9D50DD),
           ledColor: const Color(0xFF9D50DD),
           importance: NotificationImportance.High,

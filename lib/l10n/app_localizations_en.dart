@@ -193,6 +193,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get tellUsAboutTask => 'Tell us about your task';
 
   @override
+  String get taskLabel => 'Task';
+
+  @override
+  String get taskInputHint => 'Tell me about your task';
+
+  @override
   String get title => 'Title';
 
   @override
@@ -221,6 +227,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get save => 'Save';
+
+  @override
+  String get saveDraft => 'Save draft';
 
   @override
   String get pleaseEnterTitle => 'Please enter a title';
@@ -459,4 +468,117 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get useSystemAlarmFallback => 'Add via system alarm app';
+
+  @override
+  String get markdownSyntaxHint => 'Markdown Syntax';
+
+  @override
+  String get markdownHintBold => 'Bold';
+
+  @override
+  String get markdownHintItalic => 'Italic';
+
+  @override
+  String get markdownHintHeading => 'Heading';
+
+  @override
+  String get markdownHintList => 'Unordered list';
+
+  @override
+  String get markdownHintTask => 'Task item';
+
+  @override
+  String get markdownHintLink => 'Link';
+
+  @override
+  String get draftFound => 'Draft found';
+
+  @override
+  String get draftLoadPrompt => 'Load unsaved content?';
+
+  @override
+  String get ignore => 'Ignore';
+
+  @override
+  String get load => 'Load';
+
+  @override
+  String get editDescription => 'Edit description';
+
+  @override
+  String get edit => 'Edit';
+
+  @override
+  String get preview => 'Preview';
+
+  @override
+  String get markdownHintStrikethrough => 'Strikethrough';
+
+  @override
+  String get markdownHintQuote => 'Quote';
+
+  @override
+  String get markdownHintCode => 'Code';
+
+  @override
+  String get markdownHintOrderedList => 'Ordered list';
+
+  @override
+  String get markdownHintTable => 'Table';
+
+  @override
+  String get markdownHintImage => 'Image';
+
+  @override
+  String get insertTemplate => 'Insert template';
+
+  @override
+  String get meetingNotes => 'Meeting notes';
+
+  @override
+  String get todoList => 'Todo list';
+
+  @override
+  String get dailyLog => 'Daily log';
+
+  @override
+  String get markdownHintPlaceholder =>
+      'Supports Markdown syntax...\n\n# Heading\n**Bold** *Italic*\n- List item\n- [ ] Task';
+
+  @override
+  String get previewEmpty => '# Preview\n\nNo content';
+
+  @override
+  String characterCount(int count) {
+    return '$count characters';
+  }
+
+  @override
+  String get done => 'Done';
+
+  @override
+  String get fullscreenEdit => 'Fullscreen edit';
+
+  @override
+  String get taskReminder => 'Task Reminder';
+
+  @override
+  String get notificationChannelName => 'Task Reminders';
+
+  @override
+  String get notificationChannelDescription => 'Reminders for your tasks';
+
+  @override
+  String templateMeetingNotes(String time) {
+    return '## Meeting notes\n\n**Time**: $time\n**Participants**: \n\n### Agenda\n- \n\n### Decisions\n- \n\n### Action items\n- [ ] \n';
+  }
+
+  @override
+  String get templateTodoList =>
+      '## Todo list\n\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3\n';
+
+  @override
+  String templateDailyLog(String date) {
+    return '## $date Log\n\n### Done\n- \n\n### In progress\n- \n\n### Planned\n- \n';
+  }
 }

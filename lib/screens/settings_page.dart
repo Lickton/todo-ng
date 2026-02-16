@@ -104,12 +104,13 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
+    final l10n = AppLocalizations.of(context)!;
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
         id: 999999, // Use a high ID for test notifications
         channelKey: NotificationService.channelKey,
-        title: 'Test Notification',
-        body: 'This is a test notification to verify notifications are working!',
+        title: l10n.testNotification,
+        body: l10n.testNotificationBody,
         category: NotificationCategory.Reminder,
         payload: {'test': 'true'},
       ),
@@ -285,6 +286,10 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
 
             const SizedBox(height: 24),
+
+            // Markdown 语法提示
+            _MarkdownSyntaxHintSection(l10n: AppLocalizations.of(context)!),
+            const SizedBox(height: 24),
             const Divider(height: 1),
 
             // About section
@@ -356,6 +361,114 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MarkdownSyntaxHintSection extends StatefulWidget {
+  const _MarkdownSyntaxHintSection({required this.l10n});
+  final AppLocalizations l10n;
+
+  @override
+  State<_MarkdownSyntaxHintSection> createState() =>
+      _MarkdownSyntaxHintSectionState();
+}
+
+class _MarkdownSyntaxHintSectionState extends State<_MarkdownSyntaxHintSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
+                  const SizedBox(width: 8),
+                  Text(
+                    l10n.markdownSyntaxHint,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _expanded ? Icons.expand_less : Icons.expand_more,
+                    color: Colors.blue.shade700,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_expanded) ...[
+            Divider(height: 1, color: Colors.blue.shade200),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _hintRow('**粗体**', l10n.markdownHintBold),
+                  const SizedBox(height: 8),
+                  _hintRow('*斜体*', l10n.markdownHintItalic),
+                  const SizedBox(height: 8),
+                  _hintRow('# 标题', l10n.markdownHintHeading),
+                  const SizedBox(height: 8),
+                  _hintRow('- 列表', l10n.markdownHintList),
+                  const SizedBox(height: 8),
+                  _hintRow('- [ ] 任务', l10n.markdownHintTask),
+                  const SizedBox(height: 8),
+                  _hintRow('[链接](url)', l10n.markdownHintLink),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _hintRow(String syntax, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade200,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            syntax,
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 12,
+              color: Colors.blue.shade700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            description,
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -11,6 +11,7 @@ import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
+import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -42,6 +43,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
   List<ActionItem> _actions = [];
   bool _hasIncompleteAction = false;
 
+  /// 全屏 Markdown 编辑打开时隐藏主保存按钮
+  bool _isFullscreenMarkdown = false;
+
+  /// 保存前触发，将描述区内联未暂存内容同步到 controller
+  final _descFlushRequested = ValueNotifier<int>(0);
+
   // Colors (replace with Theme if preferred)
   static const Color blueColor = Color(0xFF2563EB); // Tailwind-ish blue-600
   static const Color black = Colors.black;
@@ -62,6 +69,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
   }
 
   Future<void> _save() async {
+    _descFlushRequested.value++;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,7 +120,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final validActions = _actions.where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true)).toList();
     final entity = TaskEntity(
       title: title,
-      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
       time: timeStr,
       date: dateStr,
       hasNotification: _reminder,
@@ -150,6 +158,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
   @override
   void dispose() {
+    _descFlushRequested.dispose();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
@@ -184,23 +193,30 @@ class _AddTaskPageState extends State<AddTaskPage> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: 24).add(_screenHPad),
+          padding: EdgeInsets.only(
+                bottom: _isFullscreenMarkdown ? 24 : 120,
+              ).add(_screenHPad),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title / Description
-              _FieldLabel(text: AppLocalizations.of(context)!.tellUsAboutTask),
+              _FieldLabel(text: AppLocalizations.of(context)!.taskLabel),
               SizedBox(height: spacing),
               _InputField(
                 controller: _titleCtrl,
-                hint: AppLocalizations.of(context)!.title,
+                hint: AppLocalizations.of(context)!.taskInputHint,
                 textInputAction: TextInputAction.next,
               ),
               SizedBox(height: spacing),
-              _InputField(
+              _FieldLabel(text: AppLocalizations.of(context)!.description),
+              SizedBox(height: spacing),
+              DescriptionMarkdownField(
                 controller: _descCtrl,
-                hint: AppLocalizations.of(context)!.description,
-                maxLines: 3,
+                hintText: AppLocalizations.of(context)!.description,
+                onChanged: () => setState(() {}),
+                onFullscreenChanged: (v) =>
+                    setState(() => _isFullscreenMarkdown = v),
+                flushRequested: _descFlushRequested,
               ),
               SizedBox(height: bigSpacing),
 
@@ -258,32 +274,38 @@ class _AddTaskPageState extends State<AddTaskPage> {
           ),
         ),
       ),
-      // Save button fixed to bottom visually via a large button in bottomNavigationBar
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
-        child: SafeArea(
+      bottomNavigationBar: _isFullscreenMarkdown
+          ? null
+          : Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                0,
+                16,
+                32 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: SafeArea(
 
-          //minimum: _screenHPad.add(const EdgeInsets.only(bottom: 16)),
-          child: SizedBox(
-            height: 56,
-            child: FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF3B82F6), // Blue 500
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
+                top: false,
+                child: SizedBox(
+                  height: 56,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6), // Blue 500
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                    onPressed: _save,
+                    child: Text(AppLocalizations.of(context)!.save),
+                  ),
                 ),
               ),
-              onPressed: _save,
-              child: Text(AppLocalizations.of(context)!.save),
             ),
-          ),
-        ),
-      ),
     );
   }
 }
