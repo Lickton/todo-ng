@@ -2,6 +2,23 @@ import 'dart:convert';
 
 import 'action_item.dart';
 
+/// 优先级：红 > 黄 > 蓝 > 白
+enum TaskPriority {
+  red,
+  yellow,
+  blue,
+  white,
+}
+
+/// 时间类型：仅开始、仅结束、两者都有
+/// - start_only: 有计划的任务（组会、学习计划等），可重复
+/// - end_only / both: 无重复，做一段时间就结束
+enum TimeKind {
+  startOnly,  // 仅有开始时间
+  endOnly,    // 仅有结束时间
+  both,       // 开始+结束都有
+}
+
 class TaskEntity {
   TaskEntity({
     this.id,
@@ -9,11 +26,15 @@ class TaskEntity {
     this.description,
     this.time,
     this.date,
+    this.timeKind = TimeKind.startOnly,
+    this.endTime,
+    this.endDate,
     this.hasNotification = false,
     this.reminderTime,
     this.useSystemAlarm = false,
     this.repeatRule,
     this.completed = false,
+    this.priority = TaskPriority.white,
     this.createdAt,
     this.updatedAt,
     this.actions,
@@ -24,13 +45,22 @@ class TaskEntity {
   String? description;
   String? time; // "11:30 AM"
   String? date; // "26/11/24"
+  /// 时间类型，null 或缺失时按 startOnly 处理（兼容旧数据）
+  TimeKind timeKind;
+  String? endTime; // "18:00"
+  String? endDate; // "26/11/24"
   bool hasNotification;
-  /// 提醒时间：offset:5(提前5分钟)、offset:0(准时)、custom:dd/MM/yy h:mm a(自定义)、或 dd/MM/yy h:mm a(无任务时间时的绝对时间)
+  /// 提醒时间：
+  /// - offset:m 发生当天提前 m 分钟
+  /// - days_before:n,h:mm 发生前 n 天在 h:mm 提醒
+  /// - custom:dd/MM/yy h:mm a 自定义绝对时间
+  /// - dd/MM/yy h:mm a 无任务时间时的绝对时间
   String? reminderTime;
   /// 是否同时在系统闹钟中添加提醒（仅 Android）
   bool useSystemAlarm;
   String? repeatRule; // e.g., "Weekly"
   bool completed;
+  TaskPriority priority;
   String? createdAt;
   String? updatedAt;
 
@@ -69,6 +99,42 @@ class TaskEntity {
     return [];
   }
 
+  static TimeKind _parseTimeKind(String? v) {
+    if (v == null || v.isEmpty) return TimeKind.startOnly;
+    switch (v) {
+      case 'end_only': return TimeKind.endOnly;
+      case 'both': return TimeKind.both;
+      default: return TimeKind.startOnly;
+    }
+  }
+
+  static String _timeKindToStr(TimeKind k) {
+    switch (k) {
+      case TimeKind.endOnly: return 'end_only';
+      case TimeKind.both: return 'both';
+      default: return 'start_only';
+    }
+  }
+
+  static TaskPriority _parsePriority(String? v) {
+    if (v == null || v.isEmpty) return TaskPriority.white;
+    switch (v) {
+      case 'red': return TaskPriority.red;
+      case 'yellow': return TaskPriority.yellow;
+      case 'blue': return TaskPriority.blue;
+      default: return TaskPriority.white;
+    }
+  }
+
+  static String _priorityToStr(TaskPriority p) {
+    switch (p) {
+      case TaskPriority.red: return 'red';
+      case TaskPriority.yellow: return 'yellow';
+      case TaskPriority.blue: return 'blue';
+      default: return 'white';
+    }
+  }
+
   factory TaskEntity.fromMap(Map<String, dynamic> m) {
     final acts = _parseActions(m);
     return TaskEntity(
@@ -77,11 +143,15 @@ class TaskEntity {
       description: m['description'] as String?,
       time: m['time'] as String?,
       date: m['date'] as String?,
+      timeKind: _parseTimeKind(m['time_kind'] as String?),
+      endTime: m['end_time'] as String?,
+      endDate: m['end_date'] as String?,
       hasNotification: (m['has_notification'] as int? ?? 0) == 1,
       reminderTime: m['reminder_time'] as String?,
       useSystemAlarm: (m['use_system_alarm'] as int? ?? 0) == 1,
       repeatRule: m['repeat_rule'] as String?,
       completed: (m['completed'] as int? ?? 0) == 1,
+      priority: _parsePriority(m['priority'] as String?),
       createdAt: m['created_at'] as String?,
       updatedAt: m['updated_at'] as String?,
       actions: acts.isEmpty ? null : acts,
@@ -99,11 +169,15 @@ class TaskEntity {
       'description': description,
       'time': time,
       'date': date,
+      'time_kind': _timeKindToStr(timeKind),
+      'end_time': endTime,
+      'end_date': endDate,
       'has_notification': hasNotification ? 1 : 0,
       'reminder_time': reminderTime,
       'use_system_alarm': useSystemAlarm ? 1 : 0,
       'repeat_rule': repeatRule,
       'completed': completed ? 1 : 0,
+      'priority': _priorityToStr(priority),
       'created_at': createdAt,
       'updated_at': updatedAt,
       'actions': actionsJson,
@@ -116,11 +190,15 @@ class TaskEntity {
     String? description,
     String? time,
     String? date,
+    TimeKind? timeKind,
+    String? endTime,
+    String? endDate,
     bool? hasNotification,
     String? reminderTime,
     bool? useSystemAlarm,
     String? repeatRule,
     bool? completed,
+    TaskPriority? priority,
     String? createdAt,
     String? updatedAt,
     List<ActionItem>? actions,
@@ -131,11 +209,15 @@ class TaskEntity {
       description: description ?? this.description,
       time: time ?? this.time,
       date: date ?? this.date,
+      timeKind: timeKind ?? this.timeKind,
+      endTime: endTime ?? this.endTime,
+      endDate: endDate ?? this.endDate,
       hasNotification: hasNotification ?? this.hasNotification,
       reminderTime: reminderTime ?? this.reminderTime,
       useSystemAlarm: useSystemAlarm ?? this.useSystemAlarm,
       repeatRule: repeatRule ?? this.repeatRule,
       completed: completed ?? this.completed,
+      priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       actions: actions ?? this.actions,

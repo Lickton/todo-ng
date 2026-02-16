@@ -16,6 +16,7 @@ class RepeatPickerField extends StatefulWidget {
     this.selectedTime,
     required this.onTimeChanged,
     required this.onChanged,
+    this.showTimePicker = true,
   });
 
   final String? repeatRule;
@@ -30,6 +31,8 @@ class RepeatPickerField extends StatefulWidget {
     Set<int>? monthDays,
     Map<int, Set<int>>? yearMonthDays,
   }) onChanged;
+  /// 是否显示时间选择行（当日期时间在别处选择时为 false）
+  final bool showTimePicker;
 
   @override
   State<RepeatPickerField> createState() => _RepeatPickerFieldState();
@@ -234,21 +237,23 @@ class _RepeatPickerFieldState extends State<RepeatPickerField> {
                 widget.onChanged('Yearly', yearMonthDays: next),
           ),
         ],
-        const SizedBox(height: 12),
-        _TimePickerRow(
-          selectedTime: widget.selectedTime,
-          onTap: () async {
-            final picked = await showTimePicker(
-              context: context,
-              initialTime: widget.selectedTime ?? TimeOfDay.now(),
-              helpText: AppLocalizations.of(context)!.selectTime,
-            );
-            if (picked != null) widget.onTimeChanged(picked);
-          },
-          onClear: widget.selectedTime != null
-              ? () => widget.onTimeChanged(null)
-              : null,
-        ),
+        if (widget.showTimePicker) ...[
+          const SizedBox(height: 12),
+          _TimePickerRow(
+            selectedTime: widget.selectedTime,
+            onTap: () async {
+              final picked = await showTimePicker(
+                context: context,
+                initialTime: widget.selectedTime ?? TimeOfDay.now(),
+                helpText: AppLocalizations.of(context)!.selectTime,
+              );
+              if (picked != null) widget.onTimeChanged(picked);
+            },
+            onClear: widget.selectedTime != null
+                ? () => widget.onTimeChanged(null)
+                : null,
+          ),
+        ],
       ],
     );
   }

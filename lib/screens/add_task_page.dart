@@ -6,12 +6,14 @@ import 'package:intl/intl.dart';
 // Data layer
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/action_item.dart';
-import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
+import 'package:doable_todo_list_app/models/task_entity.dart';
+import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
+import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -31,7 +33,13 @@ class _AddTaskPageState extends State<AddTaskPage> {
   bool _reminder = false;
   String? _reminderTime; // offset:5, offset:0, custom:..., or absolute
   bool _useSystemAlarm = false;
-  TimeOfDay? _selectedTime;
+  TimeKind _timeKind = TimeKind.startOnly;
+  DateTime _selectedDate = DateTime.now();
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 0, minute: 0);
+  DateTime? _selectedEndDate;
+  TimeOfDay? _selectedEndTime;
+
+  TaskPriority _priority = TaskPriority.white;
 
   // Repeat selections
   String? _repeatRule;
@@ -94,11 +102,16 @@ class _AddTaskPageState extends State<AddTaskPage> {
       return;
     }
 
-    final dateStr = _formatDate(DateTime.now());
-    final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
+    final dateStr = _formatDate(_selectedDate);
+    final timeStr = _formatTime(_selectedTime);
+    final endDateStr = _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
+    final endTimeStr = _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
 
+    // 仅开始时间可重复
     String? repeatRule;
-    if (_repeatRule == null || _repeatRule == 'No repeat') {
+    if (_timeKind != TimeKind.startOnly) {
+      repeatRule = null; // 仅开始时间可重复
+    } else if (_repeatRule == null || _repeatRule == 'No repeat') {
       repeatRule = null;
     } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
       repeatRule = 'Weekly:${_repeatWeekdays.toList()..sort()}';
@@ -121,8 +134,12 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final entity = TaskEntity(
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
+      priority: _priority,
       time: timeStr,
       date: dateStr,
+      timeKind: _timeKind,
+      endTime: endTimeStr,
+      endDate: endDateStr,
       hasNotification: _reminder,
       reminderTime: _reminder ? _reminderTime : null,
       useSystemAlarm: _useSystemAlarm,
@@ -136,7 +153,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
-        taskDate: DateTime.now(),
+        taskDate: _selectedDate,
         taskTime: _selectedTime,
       );
       if (hm != null && mounted) {
@@ -220,6 +237,41 @@ class _AddTaskPageState extends State<AddTaskPage> {
               ),
               SizedBox(height: bigSpacing),
 
+              // 优先级
+              _FieldLabel(text: AppLocalizations.of(context)!.priority),
+              SizedBox(height: spacing),
+              PriorityPickerField(
+                value: _priority,
+                onChanged: (p) => setState(() => _priority = p),
+              ),
+              SizedBox(height: bigSpacing),
+
+              // 选择日期与时间
+              _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
+              SizedBox(height: spacing),
+              DateTimePickerSection(
+                timeKind: _timeKind,
+                selectedDate: _selectedDate,
+                selectedTime: _selectedTime,
+                onDateChanged: (d) => setState(() => _selectedDate = d),
+                onTimeChanged: (t) => setState(() => _selectedTime = t),
+                onTimeKindChanged: (k) => setState(() {
+                  _timeKind = k;
+                  if (k == TimeKind.both) {
+                    _selectedEndDate ??= _selectedDate.add(const Duration(days: 1));
+                    _selectedEndTime ??= _selectedTime;
+                  } else {
+                    _selectedEndDate = null;
+                    _selectedEndTime = null;
+                  }
+                }),
+                selectedEndDate: _selectedEndDate,
+                selectedEndTime: _selectedEndTime,
+                onEndDateChanged: (d) => setState(() => _selectedEndDate = d),
+                onEndTimeChanged: (t) => setState(() => _selectedEndTime = t),
+              ),
+              SizedBox(height: bigSpacing),
+
               // Action selector
               ActionSelector(
                 showTitle: true,
@@ -229,17 +281,20 @@ class _AddTaskPageState extends State<AddTaskPage> {
               ),
               SizedBox(height: bigSpacing),
 
-              // 时间（含重复 + 时间选择）
-              _FieldLabel(text: AppLocalizations.of(context)!.time),
+              // 提醒（含重复）
+              _FieldLabel(text: AppLocalizations.of(context)!.reminder),
               SizedBox(height: spacing),
-              RepeatPickerField(
-                repeatRule: _repeatRule,
-                repeatWeekdays: _repeatWeekdays,
-                repeatMonthDays: _repeatMonthDays,
-                repeatYearMonthDays: _repeatYearMonthDays,
-                selectedTime: _selectedTime,
-                onTimeChanged: (t) => setState(() => _selectedTime = t),
-                onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
+              // 仅开始时间可重复
+              if (_timeKind == TimeKind.startOnly)
+                RepeatPickerField(
+                  repeatRule: _repeatRule,
+                  repeatWeekdays: _repeatWeekdays,
+                  repeatMonthDays: _repeatMonthDays,
+                  repeatYearMonthDays: _repeatYearMonthDays,
+                  selectedTime: _selectedTime,
+                  onTimeChanged: (t) => setState(() => _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
+                  showTimePicker: false,
+                  onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
                   setState(() {
                     _repeatRule = rule;
                     _repeatWeekdays.clear();
@@ -251,11 +306,11 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   });
                 },
               ),
-              const SizedBox(height: 12),
+              if (_timeKind == TimeKind.startOnly) const SizedBox(height: 12),
               ReminderSettingField(
                 reminderEnabled: _reminder,
                 reminderTime: _reminderTime,
-                taskDate: DateTime.now(),
+                taskDate: _selectedDate,
                 taskTime: _selectedTime,
                 onReminderChanged: (enabled, time) =>
                     setState(() {

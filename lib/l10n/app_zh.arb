@@ -2,6 +2,8 @@
   "@@locale": "zh",
   "settings": "设置",
   "notifications": "通知",
+  "defaultPhonePrefix": "默认电话前缀",
+  "defaultPhonePrefixHint": "如 +86",
   "clearAllData": "清除全部数据",
   "language": "语言",
   "languageSystem": "跟随系统",
@@ -38,8 +40,21 @@
   "setTime": "设置时间",
   "time": "时间",
   "dateAndTime": "日期与时间",
+  "startTime": "开始时间",
+  "endTime": "结束时间",
+  "startDate": "开始日期",
+  "endDate": "结束日期",
+  "timeKindStartOnly": "仅开始时间（可重复）",
+  "timeKindEndOnly": "仅结束时间（不重复）",
+  "timeKindBoth": "开始与结束时间（不重复）",
+  "daysBeforeAt": "提前 {days} 天 {time} 提醒",
+  "@daysBeforeAt": {"placeholders": {"days": {"type": "int"}, "time": {"type": "String"}}},
+  "hoursMinutesBefore": "提前 {hours} 小时 {minutes} 分钟",
+  "@hoursMinutesBefore": {"placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
   "completionStatus": "完成状态",
   "completed": "已完成",
+  "taskCompletedMessage": "已完成：{title}",
+  "@taskCompletedMessage": {"placeholders": {"title": {"type": "String"}}},
   "incomplete": "未完成",
   "any": "任意",
   "repeat": "重复",
@@ -55,6 +70,11 @@
   "fridayShort": "五",
   "saturdayShort": "六",
   "sundayShort": "日",
+  "priority": "优先级",
+  "priorityRed": "红",
+  "priorityYellow": "黄",
+  "priorityBlue": "蓝",
+  "priorityWhite": "白",
   "reminders": "提醒",
   "on": "开启",
   "off": "关闭",
@@ -229,6 +249,22 @@
   "@templateDailyLog": {
     "placeholders": {
       "date": {"type": "String"}
+    }
+  },
+  "completedTasks": "已完成",
+  "sortBy": "排序方式",
+  "sortByPriority": "优先级",
+  "sortByStartTime": "开始时间",
+  "sortByEndTime": "截止时间",
+  "sortByDuration": "持续时间",
+  "sortAscending": "升序",
+  "sortDescending": "降序",
+  "noCompletedTasks": "暂无已完成任务",
+  "batchDelete": "删除",
+  "selectedCount": "已选 {count} 项",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
     }
   }
 }

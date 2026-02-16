@@ -55,6 +55,16 @@ class ReminderSettingField extends StatelessWidget {
       if (reminderTime.startsWith('offset:')) {
         final min = int.tryParse(reminderTime.substring(7)) ?? 5;
         dt = taskDt.subtract(Duration(minutes: min));
+      } else if (reminderTime.startsWith('days_before:')) {
+        final rest = reminderTime.substring(12);
+        final comma = rest.indexOf(',');
+        if (comma > 0) {
+          try {
+            final timeStr = rest.substring(comma + 1).trim();
+            final t = DateFormat('h:mm a').parseStrict(timeStr);
+            dt = DateTime(2000, 1, 1, t.hour, t.minute);
+          } catch (_) {}
+        }
       } else if (reminderTime.startsWith('custom:')) {
         try {
           dt = DateFormat('dd/MM/yy h:mm a').parse(reminderTime.substring(7));
@@ -164,12 +174,23 @@ class ReminderSettingField extends StatelessWidget {
     if (!reminderEnabled) return '';
     if (_hasTaskTime) {
       if (reminderTime == null || reminderTime!.isEmpty) {
-        return l10n.minutesBefore(5); // 默认提前 5 分钟
+        return l10n.minutesBefore(5);
       }
       if (reminderTime!.startsWith('offset:')) {
         final min = int.tryParse(reminderTime!.substring(7)) ?? 5;
         if (min == 0) return '${l10n.onTime} (${_formatReminderTimeFromOffset(0)})';
         return '${l10n.minutesBefore(min)} (${_formatReminderTimeFromOffset(min)})';
+      }
+      if (reminderTime!.startsWith('days_before:')) {
+        final rest = reminderTime!.substring(12);
+        final comma = rest.indexOf(',');
+        if (comma > 0) {
+          final n = int.tryParse(rest.substring(0, comma).trim());
+          final timeStr = rest.substring(comma + 1).trim();
+          if (n != null && n >= 1 && timeStr.isNotEmpty) {
+            return l10n.daysBeforeAt(n, timeStr);
+          }
+        }
       }
       if (reminderTime!.startsWith('custom:')) {
         try {
@@ -253,6 +274,7 @@ class ReminderSettingField extends StatelessWidget {
       taskTime!.hour,
       taskTime!.minute,
     );
+    final timeFmt = DateFormat('h:mm a');
 
     final selected = await showModalBottomSheet<String>(
       context: context,
@@ -262,7 +284,7 @@ class ReminderSettingField extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        final maxH = MediaQuery.of(ctx).size.height * 0.6;
+        final maxH = MediaQuery.of(ctx).size.height * 0.65;
         return SafeArea(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: maxH),
@@ -284,10 +306,19 @@ class ReminderSettingField extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Text(
+                        l10n.quickOptions,
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // 发生当天：提前 m 分钟
                     ...offsets.map((m) {
                       final reminderDt = taskDt.subtract(Duration(minutes: m));
-                      final timeStr = DateFormat('h:mm a').format(reminderDt);
+                      final timeStr = timeFmt.format(reminderDt);
                       final isSelected = reminderTime == 'offset:$m';
                       return ListTile(
                         leading: isSelected ? const Icon(Icons.star, color: _blueColor, size: 22) : null,
@@ -295,12 +326,23 @@ class ReminderSettingField extends StatelessWidget {
                         onTap: () => Navigator.pop(ctx, 'offset:$m'),
                       );
                     }),
-                    const Divider(),
                     ListTile(
                       leading: reminderTime == 'offset:0' ? const Icon(Icons.star, color: _blueColor, size: 22) : null,
-                      title: Text('${l10n.onTime} (${DateFormat('h:mm a').format(taskDt)})'),
+                      title: Text('${l10n.onTime} (${timeFmt.format(taskDt)})'),
                       onTap: () => Navigator.pop(ctx, 'offset:0'),
                     ),
+                    const Divider(),
+                    // 发生前 n 天在 h:mm 提醒
+                    ...([1, 2, 3].map((n) {
+                      final remindAt = '9:00 AM';
+                      final val = 'days_before:$n,$remindAt';
+                      final isSelected = reminderTime != null && reminderTime!.startsWith('days_before:$n,');
+                      return ListTile(
+                        leading: isSelected ? const Icon(Icons.star, color: _blueColor, size: 22) : null,
+                        title: Text(l10n.daysBeforeAt(n, remindAt)),
+                        onTap: () => Navigator.pop(ctx, val),
+                      );
+                    })),
                     const Divider(),
                     ListTile(
                       title: Text(l10n.customTime),

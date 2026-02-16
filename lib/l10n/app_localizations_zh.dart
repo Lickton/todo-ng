@@ -15,6 +15,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get notifications => '通知';
 
   @override
+  String get defaultPhonePrefix => '默认电话前缀';
+
+  @override
+  String get defaultPhonePrefixHint => '如 +86';
+
+  @override
   String get clearAllData => '清除全部数据';
 
   @override
@@ -110,10 +116,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dateAndTime => '日期与时间';
 
   @override
+  String get startTime => '开始时间';
+
+  @override
+  String get endTime => '结束时间';
+
+  @override
+  String get startDate => '开始日期';
+
+  @override
+  String get endDate => '结束日期';
+
+  @override
+  String get timeKindStartOnly => '仅开始时间（可重复）';
+
+  @override
+  String get timeKindEndOnly => '仅结束时间（不重复）';
+
+  @override
+  String get timeKindBoth => '开始与结束时间（不重复）';
+
+  @override
+  String daysBeforeAt(int days, String time) {
+    return '提前 $days 天 $time 提醒';
+  }
+
+  @override
+  String hoursMinutesBefore(int hours, int minutes) {
+    return '提前 $hours 小时 $minutes 分钟';
+  }
+
+  @override
   String get completionStatus => '完成状态';
 
   @override
   String get completed => '已完成';
+
+  @override
+  String taskCompletedMessage(String title) {
+    return '已完成：$title';
+  }
 
   @override
   String get incomplete => '未完成';
@@ -159,6 +201,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sundayShort => '日';
+
+  @override
+  String get priority => '优先级';
+
+  @override
+  String get priorityRed => '红';
+
+  @override
+  String get priorityYellow => '黄';
+
+  @override
+  String get priorityBlue => '蓝';
+
+  @override
+  String get priorityWhite => '白';
 
   @override
   String get reminders => '提醒';
@@ -572,5 +629,40 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String templateDailyLog(String date) {
     return '## $date 日志\n\n### 完成\n- \n\n### 进行中\n- \n\n### 计划\n- \n';
+  }
+
+  @override
+  String get completedTasks => '已完成';
+
+  @override
+  String get sortBy => '排序方式';
+
+  @override
+  String get sortByPriority => '优先级';
+
+  @override
+  String get sortByStartTime => '开始时间';
+
+  @override
+  String get sortByEndTime => '截止时间';
+
+  @override
+  String get sortByDuration => '持续时间';
+
+  @override
+  String get sortAscending => '升序';
+
+  @override
+  String get sortDescending => '降序';
+
+  @override
+  String get noCompletedTasks => '暂无已完成任务';
+
+  @override
+  String get batchDelete => '删除';
+
+  @override
+  String selectedCount(int count) {
+    return '已选 $count 项';
   }
 }

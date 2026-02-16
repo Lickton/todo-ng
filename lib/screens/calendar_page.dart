@@ -5,6 +5,8 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
+import 'package:doable_todo_list_app/utils/priority_utils.dart';
+import 'package:doable_todo_list_app/utils/recurrence_utils.dart';
 import 'package:doable_todo_list_app/screens/home_page.dart' show Task;
 import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
 
@@ -33,6 +35,7 @@ class _CalendarPageState extends State<CalendarPage> {
   List<TaskEntity> _allTasks = [];
   List<TaskEntity> _overdueTasks = [];
   Map<DateTime, List<TaskEntity>> _groupedTasks = {};
+  final Set<String> _datesWithTasks = {};
   final Map<String, GlobalKey> _dateKeys = {};
   final ScrollController _scrollController = ScrollController();
 
@@ -82,6 +85,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
     _overdueTasks = [];
     _groupedTasks = {};
+    _datesWithTasks.clear();
 
     // 初始化未来 7 天的日期分组
     for (int i = 0; i < 7; i++) {
@@ -99,10 +103,12 @@ class _CalendarPageState extends State<CalendarPage> {
 
       if (taskDateOnly.isBefore(today)) {
         _overdueTasks.add(task);
+        _datesWithTasks.add(_dateKey(taskDateOnly));
       } else {
-        if (_taskMatchesDate(task, taskDateOnly)) {
+        if (RecurrenceUtils.taskMatchesDate(task, taskDateOnly)) {
           _groupedTasks[taskDateOnly] ??= [];
           _groupedTasks[taskDateOnly]!.add(task);
+          _datesWithTasks.add(_dateKey(taskDateOnly));
         }
       }
     }
@@ -117,76 +123,39 @@ class _CalendarPageState extends State<CalendarPage> {
 
       for (int i = 1; i < 7; i++) {
         final d = today.add(Duration(days: i));
-        if (_taskMatchesDate(task, d) && !(_groupedTasks[d] ?? []).contains(task)) {
+        if (RecurrenceUtils.taskMatchesDate(task, d) && !(_groupedTasks[d] ?? []).contains(task)) {
           _groupedTasks[d] ??= [];
           _groupedTasks[d]!.add(task);
+          _datesWithTasks.add(_dateKey(d));
         }
       }
     }
 
-    _overdueTasks.sort(
-        (a, b) => _parseTaskDate(a.date!)!.compareTo(_parseTaskDate(b.date!)!));
+    // 为日历标记扩展：过去 60 天 + 未来 90 天，检查重复任务
+    for (var task in _allTasks.where((t) => !t.completed)) {
+      if (task.date == null || task.date!.isEmpty) continue;
+      final rule = (task.repeatRule ?? '').trim().toLowerCase();
+      if (rule.isEmpty || rule == 'no repeat') continue;
+      for (int i = -60; i <= 90; i++) {
+        final d = today.add(Duration(days: i));
+        if (RecurrenceUtils.taskMatchesDate(task, d)) {
+          _datesWithTasks.add(_dateKey(d));
+        }
+      }
+    }
+
+    _overdueTasks.sort((a, b) {
+      final pa = PriorityUtils.sortOrder(a.priority);
+      final pb = PriorityUtils.sortOrder(b.priority);
+      if (pa != pb) return pa.compareTo(pb);
+      return _parseTaskDate(a.date!)!.compareTo(_parseTaskDate(b.date!)!);
+    });
   }
 
-  bool _taskMatchesDate(TaskEntity t, DateTime d) {
-    if (t.date == null || t.date!.isEmpty) return false;
-    DateTime? baseDate;
-    try {
-      baseDate = _dateFmt.parseStrict(t.date!);
-    } catch (_) {
-      return false;
-    }
-    final dateStr = _dateFmt.format(d);
-    final rule = (t.repeatRule ?? '').trim().toLowerCase();
-
-    if (rule.isEmpty || rule == 'no repeat') {
-      return (t.date ?? '') == dateStr;
-    }
-    if (rule == 'daily') return true;
-    if (rule.startsWith('monthly')) {
-      Set<int> monthDays = {baseDate.day};
-      final colon = rule.indexOf(':');
-      if (colon >= 0 && colon + 1 < rule.length) {
-        final parts = rule.substring(colon + 1).split(RegExp(r'[,\s\[\]]+'));
-        monthDays = parts
-            .map((s) => int.tryParse(s.trim()))
-            .where((v) => v != null && v >= 1 && v <= 31)
-            .cast<int>()
-            .toSet();
-        if (monthDays.isEmpty) monthDays = {baseDate.day};
-      }
-      return monthDays.contains(d.day);
-    }
-    if (rule.startsWith('yearly')) {
-      final colon = rule.indexOf(':');
-      if (colon < 0 || colon + 1 >= rule.length) {
-        return baseDate.month == d.month && baseDate.day == d.day;
-      }
-      for (final part in rule.substring(colon + 1).split(',')) {
-        final dash = part.indexOf('-');
-        if (dash > 0 && dash < part.length - 1) {
-          final m = int.tryParse(part.substring(0, dash).trim());
-          final day = int.tryParse(part.substring(dash + 1).trim());
-          if (m == d.month && day == d.day) return true;
-        }
-      }
-      return false;
-    }
-    if (rule.startsWith('weekly')) {
-      Set<int> weekdays = {baseDate.weekday};
-      final colon = rule.indexOf(':');
-      if (colon >= 0 && colon + 1 < rule.length) {
-        final parts = rule.substring(colon + 1).split(',');
-        weekdays = parts
-            .map((s) => int.tryParse(s.trim()))
-            .where((v) => v != null && v >= 1 && v <= 7)
-            .cast<int>()
-            .toSet();
-        if (weekdays.isEmpty) weekdays = {baseDate.weekday};
-      }
-      return weekdays.contains(d.weekday);
-    }
-    return (t.date ?? '') == dateStr;
+  List<TaskEntity> _sortTasksByPriority(List<TaskEntity> tasks) {
+    final list = List<TaskEntity>.from(tasks);
+    list.sort((a, b) => PriorityUtils.sortOrder(a.priority).compareTo(PriorityUtils.sortOrder(b.priority)));
+    return list;
   }
 
   DateTime? _parseTaskDate(String dateStr) {
@@ -200,8 +169,18 @@ class _CalendarPageState extends State<CalendarPage> {
   String _formatDate(DateTime d) => _dateFmt.format(d);
 
   Future<void> _toggleTaskComplete(TaskEntity task) async {
-    await TaskRepository().toggle(task.id!, !task.completed);
+    final markingComplete = !task.completed;
+    await TaskRepository().toggle(task.id!, markingComplete);
     await _load();
+    if (mounted && markingComplete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.taskCompletedMessage(task.title)),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
@@ -379,7 +358,7 @@ class _CalendarPageState extends State<CalendarPage> {
           // 日历组件（收起时需足够高度容纳周视图：星期标题 + 一行日期）
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            height: _calendarExpanded ? 350 : 160,
+            height: _calendarExpanded ? 380 : 160,
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding(context)),
             child: TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
@@ -389,6 +368,31 @@ class _CalendarPageState extends State<CalendarPage> {
               calendarFormat:
                   _calendarExpanded ? CalendarFormat.month : CalendarFormat.week,
               startingDayOfWeek: StartingDayOfWeek.monday,
+              rowHeight: 52,
+              availableGestures: AvailableGestures.horizontalSwipe,
+              eventLoader: (day) {
+                final key = _dateKey(DateTime(day.year, day.month, day.day));
+                return _datesWithTasks.contains(key) ? ['task'] : [];
+              },
+              calendarBuilders: CalendarBuilders(
+                markerBuilder: (context, day, events) {
+                  if (events.isEmpty) return null;
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade400,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
               onDaySelected: (selectedDay, focusedDay) {
                 setState(() {
                   _selectedDay = selectedDay;
@@ -400,6 +404,9 @@ class _CalendarPageState extends State<CalendarPage> {
                 setState(() => _focusedDay = focusedDay);
               },
               calendarStyle: CalendarStyle(
+                markersAlignment: Alignment.bottomCenter,
+                markersAnchor: 0.95,
+                markerMargin: const EdgeInsets.only(top: 6),
                 todayDecoration: const BoxDecoration(
                   color: Colors.blue,
                   shape: BoxShape.circle,
@@ -589,7 +596,7 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
           )
         else
-          ...tasks.map((t) => _buildTaskCard(t)),
+          ..._sortTasksByPriority(tasks).map((t) => _buildTaskCard(t)),
         const SizedBox(height: 24),
       ],
     );
@@ -606,11 +613,15 @@ class _CalendarPageState extends State<CalendarPage> {
             description: task.description,
             time: task.time,
             date: task.date,
+            timeKind: task.timeKind,
+            endTime: task.endTime,
+            endDate: task.endDate,
             hasNotification: task.hasNotification,
             reminderTime: task.reminderTime,
             useSystemAlarm: task.useSystemAlarm,
             repeatRule: task.repeatRule,
             completed: task.completed,
+            priority: task.priority,
             actions: task.actions,
           );
           final result = await showModalBottomSheet<bool>(
@@ -661,6 +672,15 @@ class _CalendarPageState extends State<CalendarPage> {
                     decoration:
                         task.completed ? TextDecoration.lineThrough : null,
                   ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                width: 4,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: PriorityUtils.colorOf(task.priority),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ],

@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/action_item.dart';
+import 'package:doable_todo_list_app/services/config_service.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 
 class _ActionTypeOption {
@@ -23,7 +24,15 @@ List<_ActionTypeOption> _buildActionTypeOptions(BuildContext context) {
   ];
 }
 
-final RegExp _chinaPhoneRegExp = RegExp(r'^1[3-9]\d{9}$');
+/// 从完整号码中提取纯数字部分
+String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
+
+/// 校验完整电话号码（含前缀）：至少 10 位数字
+bool _isValidFullPhone(String s) {
+  final digits = _digitsOnly(s);
+  return digits.length >= 10 && digits.length <= 15;
+}
+
 bool _isValidUrl(String s) {
   final t = s.trim();
   return t.startsWith('http://') || t.startsWith('https://');
@@ -236,6 +245,7 @@ class _ActionSelectorState extends State<ActionSelector> {
         if (value == 'navigation') slot.targetController.text = 'gaode';
         if (value == 'meeting') slot.targetController.text = 'tencent';
         if (value == 'web') slot.dataController.text = 'https://';
+        if (value == 'phone') slot.dataController.text = ConfigService.instance.defaultPhonePrefix;
       });
       _notifyChanged();
     }
@@ -289,7 +299,14 @@ class _ActionSelectorState extends State<ActionSelector> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildFieldLabel(context, l10n.phoneNumber),
-            _buildTextField(context, controller: slot.dataController, hint: l10n.phoneNumberHint, errorText: slot.hasPhoneError ? l10n.phoneError : (slot.hasRequiredError ? l10n.pleaseFillContent : null), keyboardType: TextInputType.phone, onChanged: onDataChanged),
+            _buildTextField(
+              context,
+              controller: slot.dataController,
+              hint: '${ConfigService.instance.defaultPhonePrefix} ${l10n.phoneNumberHint}',
+              errorText: slot.hasPhoneError ? l10n.phoneError : (slot.hasRequiredError ? l10n.pleaseFillContent : null),
+              keyboardType: TextInputType.phone,
+              onChanged: onDataChanged,
+            ),
           ],
         );
         break;
@@ -471,7 +488,7 @@ class _ActionSlot {
   bool get hasPhoneError {
     if (type != 'phone') return false;
     final t = dataController.text.trim();
-    return t.isNotEmpty && !_chinaPhoneRegExp.hasMatch(t);
+    return t.isNotEmpty && !_isValidFullPhone(t);
   }
 
   bool get hasUrlError {
@@ -504,9 +521,13 @@ class _ActionSlot {
 
   ActionItem? toItem() {
     if (type == null || type!.isEmpty) return null;
-    final data = dataController.text.trim();
-    if (data.isEmpty) return null;
-    if (type == 'phone' && !_chinaPhoneRegExp.hasMatch(data)) return null;
+    final raw = dataController.text.trim();
+    if (raw.isEmpty) return null;
+    String data = raw;
+    if (type == 'phone') {
+      if (!_isValidFullPhone(raw)) return null;
+      data = raw.startsWith('+') ? raw : '${ConfigService.instance.defaultPhonePrefix}$raw';
+    }
     if (type == 'web' && !_isValidUrl(data)) return null;
     if (type == 'meeting' && !MeetingUtils.hasValidMeetingData(data)) return null;
     return ActionItem(
@@ -521,9 +542,13 @@ class _ActionSlot {
     if (type == null || type!.isEmpty) {
       return const ActionItem(type: '', data: null, target: null);
     }
+    String data = dataController.text.trim();
+    if (type == 'phone' && data.isNotEmpty && !data.startsWith('+')) {
+      data = '${ConfigService.instance.defaultPhonePrefix}$data';
+    }
     return ActionItem(
       type: type!,
-      data: dataController.text,
+      data: data,
       target: targetController.text.isEmpty ? null : targetController.text,
     );
   }

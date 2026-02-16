@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DatabaseService {
   static const _dbName = 'doable.db';
-  static const _dbVersion = 5;
+  static const _dbVersion = 7;
 
   static Database? _db;
 
@@ -29,6 +29,7 @@ class DatabaseService {
             use_system_alarm INTEGER NOT NULL DEFAULT 0,
             repeat_rule TEXT,
             completed INTEGER NOT NULL DEFAULT 0,
+            priority TEXT DEFAULT 'white',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT,
             action_type TEXT,
@@ -49,6 +50,14 @@ class DatabaseService {
         }
         if (oldV < 5) {
           await db.execute('ALTER TABLE tasks ADD COLUMN use_system_alarm INTEGER NOT NULL DEFAULT 0');
+        }
+        if (oldV < 6) {
+          await db.execute('ALTER TABLE tasks ADD COLUMN time_kind TEXT');
+          await db.execute('ALTER TABLE tasks ADD COLUMN end_time TEXT');
+          await db.execute('ALTER TABLE tasks ADD COLUMN end_date TEXT');
+        }
+        if (oldV < 7) {
+          await db.execute("ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'white'");
         }
         if (oldV < 3) {
           await db.execute('ALTER TABLE tasks ADD COLUMN actions TEXT');

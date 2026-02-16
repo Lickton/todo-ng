@@ -2,8 +2,9 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
-import 'package:doable_todo_list_app/screens/home_page.dart';
 import 'package:doable_todo_list_app/screens/calendar_page.dart';
+import 'package:doable_todo_list_app/screens/completed_tasks_page.dart';
+import 'package:doable_todo_list_app/screens/home_page.dart';
 
 /// 主框架：macOS 任务栏风格底部导航 + 右侧独立添加按钮
 class MainScaffold extends StatefulWidget {
@@ -41,7 +42,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   void _onPageChanged(int index) {
     setState(() {
       _currentIndex = index;
-      if (index == 1) _refreshTrigger++;
+      if (index == 1 || index == 2) _refreshTrigger++;
     });
   }
 
@@ -59,7 +60,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        physics: const BouncingScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(),
         children: [
           HomePage(refreshTrigger: _refreshTrigger),
           CalendarPage(
@@ -68,6 +69,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               _calendarGoToToday = goToToday;
             },
           ),
+          CompletedTasksPage(refreshTrigger: _refreshTrigger),
         ],
       ),
       extendBody: true,
@@ -84,6 +86,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                 onSettingsTap: () => Navigator.of(context).pushNamed('settings'),
                 todayLabel: AppLocalizations.of(context)!.today,
                 calendarLabel: AppLocalizations.of(context)!.calendar,
+                completedLabel: AppLocalizations.of(context)!.completedTasks,
                 settingsLabel: AppLocalizations.of(context)!.settings,
               ),
             ),
@@ -111,6 +114,7 @@ class _DockNavBar extends StatelessWidget {
     required this.onSettingsTap,
     required this.todayLabel,
     required this.calendarLabel,
+    required this.completedLabel,
     required this.settingsLabel,
   });
 
@@ -119,6 +123,7 @@ class _DockNavBar extends StatelessWidget {
   final VoidCallback onSettingsTap;
   final String todayLabel;
   final String calendarLabel;
+  final String completedLabel;
   final String settingsLabel;
 
   @override
@@ -158,6 +163,12 @@ class _DockNavBar extends StatelessWidget {
                 label: calendarLabel,
                 selected: currentIndex == 1,
                 onTap: () => onTap(1),
+              ),
+              _NavItem(
+                icon: const Icon(Icons.check_circle_outline, size: 24),
+                label: completedLabel,
+                selected: currentIndex == 2,
+                onTap: () => onTap(2),
               ),
               _NavItem(
                 icon: const Icon(Icons.settings, size: 24),

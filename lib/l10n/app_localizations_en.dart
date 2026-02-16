@@ -15,6 +15,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get notifications => 'Notifications';
 
   @override
+  String get defaultPhonePrefix => 'Default phone prefix';
+
+  @override
+  String get defaultPhonePrefixHint => 'e.g. +86';
+
+  @override
   String get clearAllData => 'Clear All Data';
 
   @override
@@ -115,10 +121,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dateAndTime => 'Date & Time';
 
   @override
+  String get startTime => 'Start time';
+
+  @override
+  String get endTime => 'End time';
+
+  @override
+  String get startDate => 'Start date';
+
+  @override
+  String get endDate => 'End date';
+
+  @override
+  String get timeKindStartOnly => 'Start time only (recurring allowed)';
+
+  @override
+  String get timeKindEndOnly => 'End time only (no repeat)';
+
+  @override
+  String get timeKindBoth => 'Start and end time (no repeat)';
+
+  @override
+  String daysBeforeAt(int days, String time) {
+    return '$days day(s) before at $time';
+  }
+
+  @override
+  String hoursMinutesBefore(int hours, int minutes) {
+    return '${hours}h ${minutes}m before';
+  }
+
+  @override
   String get completionStatus => 'Completion Status';
 
   @override
   String get completed => 'Completed';
+
+  @override
+  String taskCompletedMessage(String title) {
+    return 'Completed: $title';
+  }
 
   @override
   String get incomplete => 'Incomplete';
@@ -164,6 +206,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sundayShort => 'Sun';
+
+  @override
+  String get priority => 'Priority';
+
+  @override
+  String get priorityRed => 'Red';
+
+  @override
+  String get priorityYellow => 'Yellow';
+
+  @override
+  String get priorityBlue => 'Blue';
+
+  @override
+  String get priorityWhite => 'White';
 
   @override
   String get reminders => 'Reminders';
@@ -580,5 +637,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String templateDailyLog(String date) {
     return '## $date Log\n\n### Done\n- \n\n### In progress\n- \n\n### Planned\n- \n';
+  }
+
+  @override
+  String get completedTasks => 'Completed';
+
+  @override
+  String get sortBy => 'Sort by';
+
+  @override
+  String get sortByPriority => 'Priority';
+
+  @override
+  String get sortByStartTime => 'Start time';
+
+  @override
+  String get sortByEndTime => 'End time';
+
+  @override
+  String get sortByDuration => 'Duration';
+
+  @override
+  String get sortAscending => 'Ascending';
+
+  @override
+  String get sortDescending => 'Descending';
+
+  @override
+  String get noCompletedTasks => 'No completed tasks';
+
+  @override
+  String get batchDelete => 'Delete';
+
+  @override
+  String selectedCount(int count) {
+    return '$count selected';
   }
 }

@@ -110,6 +110,18 @@ abstract class AppLocalizations {
   /// **'Notifications'**
   String get notifications;
 
+  /// No description provided for @defaultPhonePrefix.
+  ///
+  /// In en, this message translates to:
+  /// **'Default phone prefix'**
+  String get defaultPhonePrefix;
+
+  /// No description provided for @defaultPhonePrefixHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. +86'**
+  String get defaultPhonePrefixHint;
+
   /// No description provided for @clearAllData.
   ///
   /// In en, this message translates to:
@@ -296,6 +308,60 @@ abstract class AppLocalizations {
   /// **'Date & Time'**
   String get dateAndTime;
 
+  /// No description provided for @startTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get startTime;
+
+  /// No description provided for @endTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End time'**
+  String get endTime;
+
+  /// No description provided for @startDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Start date'**
+  String get startDate;
+
+  /// No description provided for @endDate.
+  ///
+  /// In en, this message translates to:
+  /// **'End date'**
+  String get endDate;
+
+  /// No description provided for @timeKindStartOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time only (recurring allowed)'**
+  String get timeKindStartOnly;
+
+  /// No description provided for @timeKindEndOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'End time only (no repeat)'**
+  String get timeKindEndOnly;
+
+  /// No description provided for @timeKindBoth.
+  ///
+  /// In en, this message translates to:
+  /// **'Start and end time (no repeat)'**
+  String get timeKindBoth;
+
+  /// No description provided for @daysBeforeAt.
+  ///
+  /// In en, this message translates to:
+  /// **'{days} day(s) before at {time}'**
+  String daysBeforeAt(int days, String time);
+
+  /// No description provided for @hoursMinutesBefore.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m before'**
+  String hoursMinutesBefore(int hours, int minutes);
+
   /// No description provided for @completionStatus.
   ///
   /// In en, this message translates to:
@@ -307,6 +373,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Completed'**
   String get completed;
+
+  /// No description provided for @taskCompletedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed: {title}'**
+  String taskCompletedMessage(String title);
 
   /// No description provided for @incomplete.
   ///
@@ -397,6 +469,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sun'**
   String get sundayShort;
+
+  /// No description provided for @priority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get priority;
+
+  /// No description provided for @priorityRed.
+  ///
+  /// In en, this message translates to:
+  /// **'Red'**
+  String get priorityRed;
+
+  /// No description provided for @priorityYellow.
+  ///
+  /// In en, this message translates to:
+  /// **'Yellow'**
+  String get priorityYellow;
+
+  /// No description provided for @priorityBlue.
+  ///
+  /// In en, this message translates to:
+  /// **'Blue'**
+  String get priorityBlue;
+
+  /// No description provided for @priorityWhite.
+  ///
+  /// In en, this message translates to:
+  /// **'White'**
+  String get priorityWhite;
 
   /// No description provided for @reminders.
   ///
@@ -1183,6 +1285,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'## {date} Log\n\n### Done\n- \n\n### In progress\n- \n\n### Planned\n- \n'**
   String templateDailyLog(String date);
+
+  /// No description provided for @completedTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'Completed'**
+  String get completedTasks;
+
+  /// No description provided for @sortBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get sortBy;
+
+  /// No description provided for @sortByPriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority'**
+  String get sortByPriority;
+
+  /// No description provided for @sortByStartTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Start time'**
+  String get sortByStartTime;
+
+  /// No description provided for @sortByEndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'End time'**
+  String get sortByEndTime;
+
+  /// No description provided for @sortByDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Duration'**
+  String get sortByDuration;
+
+  /// No description provided for @sortAscending.
+  ///
+  /// In en, this message translates to:
+  /// **'Ascending'**
+  String get sortAscending;
+
+  /// No description provided for @sortDescending.
+  ///
+  /// In en, this message translates to:
+  /// **'Descending'**
+  String get sortDescending;
+
+  /// No description provided for @noCompletedTasks.
+  ///
+  /// In en, this message translates to:
+  /// **'No completed tasks'**
+  String get noCompletedTasks;
+
+  /// No description provided for @batchDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get batchDelete;
+
+  /// No description provided for @selectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String selectedCount(int count);
 }
 
 class _AppLocalizationsDelegate

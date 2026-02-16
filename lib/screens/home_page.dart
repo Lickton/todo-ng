@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart'; // for DateFormat [web:146][web:156]
 
@@ -6,6 +7,7 @@ import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
+import 'package:doable_todo_list_app/utils/priority_utils.dart';
 import 'package:doable_todo_list_app/widgets/action_button.dart';
 import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
 
@@ -17,24 +19,32 @@ class Task {
     this.description,
     this.time,
     this.date,
+    this.timeKind = TimeKind.startOnly,
+    this.endTime,
+    this.endDate,
     this.hasNotification = false,
     this.reminderTime,
     this.useSystemAlarm = false,
     this.repeatRule,
     this.completed = false,
+    this.priority = TaskPriority.white,
     this.actions,
   });
 
   final int id;
   String title;
   String? description;
-  String? time; // e.g., "11:30 AM"
-  String? date; // e.g., "26/11/24"
+  String? time;
+  String? date;
+  TimeKind timeKind;
+  String? endTime;
+  String? endDate;
   bool hasNotification;
   String? reminderTime;
   bool useSystemAlarm;
-  String? repeatRule; // e.g., "Daily", "Weekly", "Monthly", "Weekly:[1,2,4]"
+  String? repeatRule;
   bool completed;
+  TaskPriority priority;
   List<ActionItem>? actions;
 }
 
@@ -54,9 +64,11 @@ class _HomePageState extends State<HomePage> {
   // ---- Filter state ----
   DateTime? _fltDate;        // match by formatted dd/MM/yy vs task.date
   TimeOfDay? _fltTime;       // match by formatted h:mm a vs task.time
-  bool? _fltCompleted;       // true=completed, false=incomplete, null=any
+  /// null=仅未完成(默认，勾选后消失), true=仅已完成, false=全部
+  bool? _fltCompleted;
   String? _fltRepeat;        // "Daily"|"Weekly"|"Monthly"|null=any
   bool? _fltReminder;        // true=hasNotification, false=no, null=any
+  TaskPriority? _fltPriority; // null=any
 
   String _fmtDate(DateTime d) => DateFormat('dd/MM/yy').format(d); // [web:146]
   String _fmtTime(TimeOfDay t) =>
@@ -74,9 +86,13 @@ class _HomePageState extends State<HomePage> {
       final tm = _fmtTime(_fltTime!);
       it = it.where((t) => (t.time ?? '') == tm);
     }
-    if (_fltCompleted != null) {
-      it = it.where((t) => t.completed == _fltCompleted);
+    if (_fltCompleted == null) {
+      // 默认只显示未完成，勾选完成后任务直接从界面去除
+      it = it.where((t) => !t.completed);
+    } else if (_fltCompleted == true) {
+      it = it.where((t) => t.completed);
     }
+    // _fltCompleted == false 表示「任意」，不筛选
     if (_fltRepeat != null) {
       it = it.where((t) {
         final r = (t.repeatRule ?? '').trim();
@@ -90,10 +106,19 @@ class _HomePageState extends State<HomePage> {
     if (_fltReminder != null) {
       it = it.where((t) => t.hasNotification == _fltReminder);
     }
+    if (_fltPriority != null) {
+      it = it.where((t) => t.priority == _fltPriority);
+    }
 
-    final a = it.where((t) => !t.completed).toList();
-    final b = it.where((t) => t.completed).toList();
-    return [...a, ...b];
+    final list = it.toList();
+    list.sort((a, b) {
+      final pa = PriorityUtils.sortOrder(a.priority);
+      final pb = PriorityUtils.sortOrder(b.priority);
+      if (pa != pb) return pa.compareTo(pb);
+      if (a.completed != b.completed) return a.completed ? 1 : -1;
+      return 0;
+    });
+    return list;
   }
 
   void _clearFilters() {
@@ -103,6 +128,7 @@ class _HomePageState extends State<HomePage> {
       _fltCompleted = null;
       _fltRepeat = null;
       _fltReminder = null;
+      _fltPriority = null;
     });
   }
 
@@ -134,11 +160,15 @@ class _HomePageState extends State<HomePage> {
       description: e.description,
       time: e.time,
       date: e.date,
+      timeKind: e.timeKind,
+      endTime: e.endTime,
+      endDate: e.endDate,
       hasNotification: e.hasNotification,
       reminderTime: e.reminderTime,
       useSystemAlarm: e.useSystemAlarm,
       repeatRule: e.repeatRule,
       completed: e.completed,
+      priority: e.priority,
       actions: e.actions,
     ))
         .toList();
@@ -152,8 +182,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _toggle(Task t) async {
-    await TaskRepository().toggle(t.id, !t.completed);
+    final markingComplete = !t.completed;
+    await TaskRepository().toggle(t.id, markingComplete);
     await _load();
+    if (mounted && markingComplete) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.taskCompletedMessage(t.title)),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _delete(Task t) async {
@@ -197,6 +237,41 @@ class _HomePageState extends State<HomePage> {
                 helpText: AppLocalizations.of(context)!.selectTime,
               );
               if (picked != null) setSheetState(() => _fltTime = picked);
+            }
+
+            Widget priorityChip(TaskPriority p, TaskPriority? current, void Function(void Function()) setSheetState) {
+              final selected = current == p;
+              final color = PriorityUtils.colorOf(p);
+              final label = p == TaskPriority.red ? AppLocalizations.of(context)!.priorityRed
+                  : p == TaskPriority.yellow ? AppLocalizations.of(context)!.priorityYellow
+                  : p == TaskPriority.blue ? AppLocalizations.of(context)!.priorityBlue
+                  : AppLocalizations.of(context)!.priorityWhite;
+              return Material(
+                color: selected ? color : Colors.white,
+                shape: StadiumBorder(side: BorderSide(color: color, width: selected ? 0 : 2)),
+                child: InkWell(
+                  onTap: () => setSheetState(() => _fltPriority = p),
+                  customBorder: const StadiumBorder(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: selected ? Colors.white : color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(label, style: TextStyle(color: selected ? Colors.white : Colors.black, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  ),
+                ),
+              );
             }
 
             Widget chip(String label, bool selected, VoidCallback onTap) {
@@ -270,10 +345,10 @@ class _HomePageState extends State<HomePage> {
                         children: [
                           chip(AppLocalizations.of(context)!.completed, _fltCompleted == true,
                                   () => setSheetState(() => _fltCompleted = true)),
-                          chip(AppLocalizations.of(context)!.incomplete, _fltCompleted == false,
-                                  () => setSheetState(() => _fltCompleted = false)),
-                          chip(AppLocalizations.of(context)!.any, _fltCompleted == null,
+                          chip(AppLocalizations.of(context)!.incomplete, _fltCompleted == null,
                                   () => setSheetState(() => _fltCompleted = null)),
+                          chip(AppLocalizations.of(context)!.any, _fltCompleted == false,
+                                  () => setSheetState(() => _fltCompleted = false)),
                         ],
                       ),
 
@@ -315,6 +390,23 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
 
+                      const SizedBox(height: 20),
+                      Text(AppLocalizations.of(context)!.priority,
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          priorityChip(TaskPriority.red, _fltPriority, setSheetState),
+                          priorityChip(TaskPriority.yellow, _fltPriority, setSheetState),
+                          priorityChip(TaskPriority.blue, _fltPriority, setSheetState),
+                          priorityChip(TaskPriority.white, _fltPriority, setSheetState),
+                          chip(AppLocalizations.of(context)!.any, _fltPriority == null,
+                                  () => setSheetState(() => _fltPriority = null)),
+                        ],
+                      ),
+
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -347,6 +439,7 @@ class _HomePageState extends State<HomePage> {
                               _fltCompleted = null;
                               _fltRepeat = null;
                               _fltReminder = null;
+                              _fltPriority = null;
                             });
                           },
                           child: Text(AppLocalizations.of(context)!.clearSelections),
@@ -367,7 +460,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: CustomScrollView(
+      body: SlidableAutoCloseBehavior(
+        closeWhenOpened: true,
+        closeWhenTapped: true,
+        child: CustomScrollView(
         slivers: [
           // Header
           SliverToBoxAdapter(
@@ -414,32 +510,37 @@ class _HomePageState extends State<HomePage> {
           SliverList.separated(
             itemBuilder: (context, index) {
               final task = _filteredTasks[index];
-              return Dismissible(
+              final tile = InkWell(
+                onTap: () async {
+                  final result = await showModalBottomSheet<bool>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    barrierColor: Colors.black54,
+                    builder: (context) => TaskDetailSheet(task: task),
+                  );
+                  if (result == true) await _load();
+                },
+                child: TaskTile(task: task, onToggle: () => _toggle(task)),
+              );
+              return Slidable(
                 key: ValueKey(task.id),
-                direction:
-                task.completed ? DismissDirection.endToStart : DismissDirection.none,
-                background: const SizedBox.shrink(),
-                secondaryBackground: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  color: Colors.red.shade50,
-                  child: Icon(Icons.delete, color: Colors.red.shade400),
+                groupTag: 'home_tasks',
+                endActionPane: ActionPane(
+                  motion: const ScrollMotion(),
+                  extentRatio: 0.25,
+                  children: [
+                    CustomSlidableAction(
+                      onPressed: (_) => _delete(task),
+                      backgroundColor: Colors.red.shade400,
+                      foregroundColor: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: const Icon(Icons.delete_outline, size: 24),
+                    ),
+                  ],
                 ),
-                confirmDismiss: (_) async => task.completed,
-                onDismissed: (_) => _delete(task),
-                child: InkWell(
-                  onTap: () async {
-                    final result = await showModalBottomSheet<bool>(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      barrierColor: Colors.black54,
-                      builder: (context) => TaskDetailSheet(task: task),
-                    );
-                    if (result == true) await _load();
-                  },
-                  child: _TaskTile(task: task, onToggle: () => _toggle(task)),
-                ),
+                child: tile,
               );
             },
             separatorBuilder: (_, __) => const Padding(
@@ -456,6 +557,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 96)),
         ],
+        ),
       ),
     );
   }
@@ -518,8 +620,9 @@ class _FilterChipButton extends StatelessWidget {
   }
 }
 
-class _TaskTile extends StatelessWidget {
-  const _TaskTile({
+/// 任务列表项，可在 HomePage 与 CompletedTasksPage 中复用
+class TaskTile extends StatelessWidget {
+  const TaskTile({
     required this.task,
     required this.onToggle,
   });
@@ -579,6 +682,15 @@ class _TaskTile extends StatelessWidget {
                     ),
                   ),
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 4,
+            height: 40,
+            decoration: BoxDecoration(
+              color: PriorityUtils.colorOf(task.priority),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
         ],

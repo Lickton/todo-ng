@@ -11,7 +11,9 @@ import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
+import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
+import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -32,15 +34,19 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   late Task _task;
 
+  TaskPriority _priority = TaskPriority.white;
   bool _reminder = false;
   String? _reminderTime;
   bool _useSystemAlarm = false;
+  TimeKind _timeKind = TimeKind.startOnly;
   String? _repeatRule;
   final Set<int> _repeatWeekdays = {};
   final Set<int> _repeatMonthDays = {};
   final Map<int, Set<int>> _repeatYearMonthDays = {};
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
+  DateTime? _selectedEndDate;
+  TimeOfDay? _selectedEndTime;
 
   List<ActionItem> _actions = [];
   bool _hasIncompleteAction = false;
@@ -68,14 +74,18 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           'repr=${desc.replaceAll('\n', '\\n').replaceAll(' ', '·')}');
     }
 
+    _priority = _task.priority;
     _reminder = _task.hasNotification;
     _reminderTime = _task.reminderTime;
     _useSystemAlarm = _task.useSystemAlarm;
     _repeatRule = _task.repeatRule;
     _hydrateAllFromRule(_repeatRule);
+    _timeKind = _task.timeKind;
 
-    _selectedDate = _parseDateOrNull(_task.date);
-    _selectedTime = _parseTimeOrNull(_task.time);
+    _selectedDate = _parseDateOrNull(_task.date) ?? DateTime.now();
+    _selectedTime = _parseTimeOrNull(_task.time) ?? const TimeOfDay(hour: 0, minute: 0);
+    _selectedEndDate = _parseDateOrNull(_task.endDate);
+    _selectedEndTime = _parseTimeOrNull(_task.endTime);
 
     _actions = _task.actions ?? [];
   }
@@ -174,11 +184,15 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       return;
     }
 
-    final dateStr = _formatDate(_selectedDate ?? DateTime.now());
-    final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
+    final dateStr = _formatDate(_selectedDate);
+    final timeStr = _formatTime(_selectedTime);
+    final endDateStr = _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
+    final endTimeStr = _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
 
     String? normalizedRepeat;
-    if (_repeatRule == null || _repeatRule == 'No repeat') {
+    if (_timeKind != TimeKind.startOnly) {
+      normalizedRepeat = null;
+    } else if (_repeatRule == null || _repeatRule == 'No repeat') {
       normalizedRepeat = null;
     } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
       normalizedRepeat = 'Weekly:${_repeatWeekdays.toList()..sort()}';
@@ -213,8 +227,12 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       id: _task.id,
       title: title,
       description: desc,
+      priority: _priority,
       time: timeStr,
       date: dateStr,
+      timeKind: _timeKind,
+      endTime: endTimeStr,
+      endDate: endDateStr,
       hasNotification: _reminder,
       reminderTime: _reminder ? _reminderTime : null,
       useSystemAlarm: _useSystemAlarm,
@@ -231,7 +249,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
-        taskDate: _selectedDate ?? DateTime.now(),
+        taskDate: _selectedDate,
         taskTime: _selectedTime,
       );
       if (hm != null && mounted) {
@@ -354,6 +372,13 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
             textInputAction: TextInputAction.next,
           ),
           const SizedBox(height: spacing),
+          _FieldLabel(text: AppLocalizations.of(context)!.priority),
+          const SizedBox(height: spacing),
+          PriorityPickerField(
+            value: _priority,
+            onChanged: (p) => setState(() => _priority = p),
+          ),
+          const SizedBox(height: bigSpacing),
           _FieldLabel(text: AppLocalizations.of(context)!.description),
           const SizedBox(height: spacing),
           DescriptionMarkdownField(
@@ -366,6 +391,31 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           ),
           const SizedBox(height: bigSpacing),
 
+          _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
+          const SizedBox(height: spacing),
+          DateTimePickerSection(
+            timeKind: _timeKind,
+            selectedDate: _selectedDate,
+            selectedTime: _selectedTime,
+            onDateChanged: (d) => setState(() => _selectedDate = d),
+            onTimeChanged: (t) => setState(() => _selectedTime = t),
+            onTimeKindChanged: (k) => setState(() {
+              _timeKind = k;
+              if (k == TimeKind.both) {
+                _selectedEndDate ??= _selectedDate.add(const Duration(days: 1));
+                _selectedEndTime ??= _selectedTime;
+              } else {
+                _selectedEndDate = null;
+                _selectedEndTime = null;
+              }
+            }),
+            selectedEndDate: _selectedEndDate,
+            selectedEndTime: _selectedEndTime,
+            onEndDateChanged: (d) => setState(() => _selectedEndDate = d),
+            onEndTimeChanged: (t) => setState(() => _selectedEndTime = t),
+          ),
+          const SizedBox(height: bigSpacing),
+
           ActionSelector(
             showTitle: true,
             initialActions: _actions,
@@ -375,15 +425,17 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           ),
           const SizedBox(height: bigSpacing),
 
-          _FieldLabel(text: AppLocalizations.of(context)!.time),
+          _FieldLabel(text: AppLocalizations.of(context)!.reminder),
           const SizedBox(height: spacing),
-          RepeatPickerField(
-            repeatRule: _repeatRule,
+          if (_timeKind == TimeKind.startOnly)
+            RepeatPickerField(
+              repeatRule: _repeatRule,
             repeatWeekdays: _repeatWeekdays,
             repeatMonthDays: _repeatMonthDays,
             repeatYearMonthDays: _repeatYearMonthDays,
             selectedTime: _selectedTime,
-            onTimeChanged: (t) => setState(() => _selectedTime = t),
+            onTimeChanged: (t) => setState(() => _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
+            showTimePicker: false,
             onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
               setState(() {
                 _repeatRule = rule;
@@ -396,11 +448,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
               });
             },
           ),
-          const SizedBox(height: 12),
+          if (_timeKind == TimeKind.startOnly) const SizedBox(height: 12),
           ReminderSettingField(
             reminderEnabled: _reminder,
             reminderTime: _reminderTime,
-            taskDate: _selectedDate ?? DateTime.now(),
+            taskDate: _selectedDate,
             taskTime: _selectedTime,
             onReminderChanged: (enabled, time) =>
                 setState(() {

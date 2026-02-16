@@ -23,20 +23,38 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool _notificationsEnabled = false;
   bool _loading = true;
+  late TextEditingController _phonePrefixCtrl;
 
   @override
   void initState() {
     super.initState();
+    _phonePrefixCtrl = TextEditingController();
     _loadPrefs();
+  }
+
+  @override
+  void dispose() {
+    _phonePrefixCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadPrefs() async {
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool(_prefsKeyNotifications) ?? false;
-    setState(() {
-      _notificationsEnabled = enabled;
-      _loading = false;
-    });
+    final prefix = ConfigService.instance.defaultPhonePrefix;
+    if (mounted) {
+      setState(() {
+        _notificationsEnabled = enabled;
+        _phonePrefixCtrl.text = prefix;
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _savePhonePrefix(String value) async {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return;
+    await ConfigService.instance.setDefaultPhonePrefix(trimmed);
   }
 
   Future<void> _setNotifications(bool value) async {
@@ -261,6 +279,35 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: _notificationsEnabled,
                   onChanged: _setNotifications,
                   activeThumbColor: blueColor,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Default phone prefix
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    AppLocalizations.of(context)!.defaultPhonePrefix,
+                    style: TextStyle(fontSize: 16, color: blackColor, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _phonePrefixCtrl,
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!.defaultPhonePrefixHint,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      isDense: true,
+                    ),
+                    keyboardType: TextInputType.phone,
+                    onSubmitted: _savePhonePrefix,
+                    onTapOutside: (_) => _savePhonePrefix(_phonePrefixCtrl.text),
+                  ),
                 ),
               ],
             ),

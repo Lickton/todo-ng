@@ -9,10 +9,14 @@ class ConfigService {
 
   static const String _keyLocale = 'app_locale';
   static const String _keyTencentMeetingScheme = 'tencent_meeting_scheme';
+  static const String _keyDefaultPhonePrefix = 'default_phone_prefix';
 
   /// 腾讯会议 URL Scheme 前缀，可配置。默认 wemeet://page/inmeeting?meeting_code=
   static const String defaultTencentMeetingScheme =
       'wemeet://page/inmeeting?meeting_code=';
+
+  /// 默认电话国家码前缀，如 +86
+  static const String defaultPhonePrefixValue = '+86';
 
   /// 支持的语言代码。null 表示跟随系统。
   static const String localeSystem = 'system';
@@ -42,6 +46,17 @@ class ConfigService {
   /// 设置腾讯会议 Scheme 前缀。
   Future<void> setTencentMeetingScheme(String scheme) async {
     await _prefs?.setString(_keyTencentMeetingScheme, scheme);
+  }
+
+  /// 默认电话前缀（如 +86），用于电话动作输入。
+  String get defaultPhonePrefix =>
+      _prefs?.getString(_keyDefaultPhonePrefix) ?? defaultPhonePrefixValue;
+
+  /// 设置默认电话前缀。
+  Future<void> setDefaultPhonePrefix(String prefix) async {
+    final trimmed = prefix.trim();
+    if (trimmed.isEmpty) return;
+    await _prefs?.setString(_keyDefaultPhonePrefix, trimmed);
   }
 
   /// 当前实际使用的 Locale（用于 MaterialApp.locale）。

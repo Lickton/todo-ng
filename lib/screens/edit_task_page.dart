@@ -5,12 +5,14 @@ import 'package:intl/intl.dart';
 
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/action_item.dart';
-import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
+import 'package:doable_todo_list_app/models/task_entity.dart';
+import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
+import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -34,15 +36,19 @@ class _EditTaskPageState extends State<EditTaskPage> {
   late Task _task;
 
   // UI state
+  TaskPriority _priority = TaskPriority.white;
   bool _reminder = false;
   String? _reminderTime;
   bool _useSystemAlarm = false;
+  TimeKind _timeKind = TimeKind.startOnly;
   String? _repeatRule;
   final Set<int> _repeatWeekdays = {};
   final Set<int> _repeatMonthDays = {};
   final Map<int, Set<int>> _repeatYearMonthDays = {};
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
+  DateTime? _selectedEndDate;
+  TimeOfDay? _selectedEndTime;
 
   // Action (optional, supports multiple)
   List<ActionItem> _actions = [];
@@ -77,15 +83,19 @@ class _EditTaskPageState extends State<EditTaskPage> {
       _descCtrl.text = _task.description ?? '';
 
       // Prefill toggles
+      _priority = _task.priority;
       _reminder = _task.hasNotification;
       _reminderTime = _task.reminderTime;
       _useSystemAlarm = _task.useSystemAlarm;
       _repeatRule = _task.repeatRule;
       _hydrateAllFromRule(_repeatRule);
+      _timeKind = _task.timeKind;
 
-      // Prefill date/time (parse stored display strings)
-      _selectedDate = _parseDateOrNull(_task.date);
-      _selectedTime = _parseTimeOrNull(_task.time);
+      // Prefill date/time
+      _selectedDate = _parseDateOrNull(_task.date) ?? DateTime.now();
+      _selectedTime = _parseTimeOrNull(_task.time) ?? const TimeOfDay(hour: 0, minute: 0);
+      _selectedEndDate = _parseDateOrNull(_task.endDate);
+      _selectedEndTime = _parseTimeOrNull(_task.endTime);
 
       // Prefill action
       _actions = _task.actions ?? [];
@@ -193,11 +203,15 @@ class _EditTaskPageState extends State<EditTaskPage> {
     }
 
     // Build display strings
-    final dateStr = _formatDate(_selectedDate ?? DateTime.now());
-    final timeStr = _selectedTime != null ? _formatTime(_selectedTime!) : null;
+    final dateStr = _formatDate(_selectedDate);
+    final timeStr = _formatTime(_selectedTime);
+    final endDateStr = _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
+    final endTimeStr = _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
 
     String? normalizedRepeat;
-    if (_repeatRule == null || _repeatRule == 'No repeat') {
+    if (_timeKind != TimeKind.startOnly) {
+      normalizedRepeat = null;
+    } else if (_repeatRule == null || _repeatRule == 'No repeat') {
       normalizedRepeat = null;
     } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
       normalizedRepeat = 'Weekly:${_repeatWeekdays.toList()..sort()}';
@@ -218,16 +232,20 @@ class _EditTaskPageState extends State<EditTaskPage> {
 
     final validActions = _actions.where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true)).toList();
     final entity = TaskEntity(
-      id: _task.id, // required for update
+      id: _task.id,
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
+      priority: _priority,
       time: timeStr,
       date: dateStr,
+      timeKind: _timeKind,
+      endTime: endTimeStr,
+      endDate: endDateStr,
       hasNotification: _reminder,
       reminderTime: _reminder ? _reminderTime : null,
       useSystemAlarm: _useSystemAlarm,
       repeatRule: normalizedRepeat,
-      completed: _task.completed, // preserve current completed state
+      completed: _task.completed,
       actions: validActions.isEmpty ? null : validActions,
     );
 
@@ -236,7 +254,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
     if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
-        taskDate: _selectedDate ?? DateTime.now(),
+        taskDate: _selectedDate,
         taskTime: _selectedTime,
       );
       if (hm != null && mounted) {
@@ -306,6 +324,13 @@ class _EditTaskPageState extends State<EditTaskPage> {
                 textInputAction: TextInputAction.next,
               ),
               SizedBox(height: spacing),
+              _FieldLabel(text: AppLocalizations.of(context)!.priority),
+              SizedBox(height: spacing),
+              PriorityPickerField(
+                value: _priority,
+                onChanged: (p) => setState(() => _priority = p),
+              ),
+              SizedBox(height: bigSpacing),
               _FieldLabel(text: AppLocalizations.of(context)!.description),
               SizedBox(height: spacing),
               DescriptionMarkdownField(
@@ -318,6 +343,32 @@ class _EditTaskPageState extends State<EditTaskPage> {
               ),
               SizedBox(height: bigSpacing),
 
+              // 选择日期与时间
+              _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
+              SizedBox(height: spacing),
+              DateTimePickerSection(
+                timeKind: _timeKind,
+                selectedDate: _selectedDate,
+                selectedTime: _selectedTime,
+                onDateChanged: (d) => setState(() => _selectedDate = d),
+                onTimeChanged: (t) => setState(() => _selectedTime = t),
+                onTimeKindChanged: (k) => setState(() {
+                  _timeKind = k;
+                  if (k == TimeKind.both) {
+                    _selectedEndDate ??= _selectedDate.add(const Duration(days: 1));
+                    _selectedEndTime ??= _selectedTime;
+                  } else {
+                    _selectedEndDate = null;
+                    _selectedEndTime = null;
+                  }
+                }),
+                selectedEndDate: _selectedEndDate,
+                selectedEndTime: _selectedEndTime,
+                onEndDateChanged: (d) => setState(() => _selectedEndDate = d),
+                onEndTimeChanged: (t) => setState(() => _selectedEndTime = t),
+              ),
+              SizedBox(height: bigSpacing),
+
               // Action selector
               ActionSelector(
                 showTitle: true,
@@ -327,16 +378,18 @@ class _EditTaskPageState extends State<EditTaskPage> {
               ),
               SizedBox(height: bigSpacing),
 
-              // 时间（含重复 + 时间选择）
-              _FieldLabel(text: AppLocalizations.of(context)!.time),
+              // 提醒（含重复，仅开始时间可重复）
+              _FieldLabel(text: AppLocalizations.of(context)!.reminder),
               SizedBox(height: spacing),
-              RepeatPickerField(
+              if (_timeKind == TimeKind.startOnly)
+                RepeatPickerField(
                 repeatRule: _repeatRule,
                 repeatWeekdays: _repeatWeekdays,
                 repeatMonthDays: _repeatMonthDays,
                 repeatYearMonthDays: _repeatYearMonthDays,
                 selectedTime: _selectedTime,
-                onTimeChanged: (t) => setState(() => _selectedTime = t),
+                onTimeChanged: (t) => setState(() => _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
+                showTimePicker: false,
                 onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
                   setState(() {
                     _repeatRule = rule;
@@ -349,11 +402,11 @@ class _EditTaskPageState extends State<EditTaskPage> {
                   });
                 },
               ),
-              const SizedBox(height: 12),
+              if (_timeKind == TimeKind.startOnly) const SizedBox(height: 12),
               ReminderSettingField(
                 reminderEnabled: _reminder,
                 reminderTime: _reminderTime,
-                taskDate: _selectedDate ?? DateTime.now(),
+                taskDate: _selectedDate,
                 taskTime: _selectedTime,
                 onReminderChanged: (enabled, time) =>
                     setState(() {

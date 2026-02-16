@@ -2,6 +2,8 @@
   "@@locale": "en",
   "settings": "Settings",
   "notifications": "Notifications",
+  "defaultPhonePrefix": "Default phone prefix",
+  "defaultPhonePrefixHint": "e.g. +86",
   "clearAllData": "Clear All Data",
   "language": "Language",
   "languageSystem": "System",
@@ -38,8 +40,21 @@
   "setTime": "Set time",
   "time": "Time",
   "dateAndTime": "Date & Time",
+  "startTime": "Start time",
+  "endTime": "End time",
+  "startDate": "Start date",
+  "endDate": "End date",
+  "timeKindStartOnly": "Start time only (recurring allowed)",
+  "timeKindEndOnly": "End time only (no repeat)",
+  "timeKindBoth": "Start and end time (no repeat)",
+  "daysBeforeAt": "{days} day(s) before at {time}",
+  "@daysBeforeAt": {"placeholders": {"days": {"type": "int"}, "time": {"type": "String"}}},
+  "hoursMinutesBefore": "{hours}h {minutes}m before",
+  "@hoursMinutesBefore": {"placeholders": {"hours": {"type": "int"}, "minutes": {"type": "int"}}},
   "completionStatus": "Completion Status",
   "completed": "Completed",
+  "taskCompletedMessage": "Completed: {title}",
+  "@taskCompletedMessage": {"placeholders": {"title": {"type": "String"}}},
   "incomplete": "Incomplete",
   "any": "Any",
   "repeat": "Repeat",
@@ -55,6 +70,11 @@
   "fridayShort": "Fri",
   "saturdayShort": "Sat",
   "sundayShort": "Sun",
+  "priority": "Priority",
+  "priorityRed": "Red",
+  "priorityYellow": "Yellow",
+  "priorityBlue": "Blue",
+  "priorityWhite": "White",
   "reminders": "Reminders",
   "on": "On",
   "off": "Off",
@@ -229,6 +249,22 @@
   "@templateDailyLog": {
     "placeholders": {
       "date": {"type": "String"}
+    }
+  },
+  "completedTasks": "Completed",
+  "sortBy": "Sort by",
+  "sortByPriority": "Priority",
+  "sortByStartTime": "Start time",
+  "sortByEndTime": "End time",
+  "sortByDuration": "Duration",
+  "sortAscending": "Ascending",
+  "sortDescending": "Descending",
+  "noCompletedTasks": "No completed tasks",
+  "batchDelete": "Delete",
+  "selectedCount": "{count} selected",
+  "@selectedCount": {
+    "placeholders": {
+      "count": {"type": "int"}
     }
   }
 }
