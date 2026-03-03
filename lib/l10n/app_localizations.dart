@@ -302,6 +302,12 @@ abstract class AppLocalizations {
   /// **'Time'**
   String get time;
 
+  /// No description provided for @date.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get date;
+
   /// No description provided for @dateAndTime.
   ///
   /// In en, this message translates to:
@@ -938,6 +944,12 @@ abstract class AppLocalizations {
   /// **'Not set'**
   String get timeNotSet;
 
+  /// No description provided for @timeOnlyNotAllowed.
+  ///
+  /// In en, this message translates to:
+  /// **'Time-only is not allowed'**
+  String get timeOnlyNotAllowed;
+
   /// No description provided for @quickOptions.
   ///
   /// In en, this message translates to:
@@ -1046,48 +1058,6 @@ abstract class AppLocalizations {
   /// **'Add via system alarm app'**
   String get useSystemAlarmFallback;
 
-  /// No description provided for @markdownSyntaxHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Markdown Syntax'**
-  String get markdownSyntaxHint;
-
-  /// No description provided for @markdownHintBold.
-  ///
-  /// In en, this message translates to:
-  /// **'Bold'**
-  String get markdownHintBold;
-
-  /// No description provided for @markdownHintItalic.
-  ///
-  /// In en, this message translates to:
-  /// **'Italic'**
-  String get markdownHintItalic;
-
-  /// No description provided for @markdownHintHeading.
-  ///
-  /// In en, this message translates to:
-  /// **'Heading'**
-  String get markdownHintHeading;
-
-  /// No description provided for @markdownHintList.
-  ///
-  /// In en, this message translates to:
-  /// **'Unordered list'**
-  String get markdownHintList;
-
-  /// No description provided for @markdownHintTask.
-  ///
-  /// In en, this message translates to:
-  /// **'Task item'**
-  String get markdownHintTask;
-
-  /// No description provided for @markdownHintLink.
-  ///
-  /// In en, this message translates to:
-  /// **'Link'**
-  String get markdownHintLink;
-
   /// No description provided for @draftFound.
   ///
   /// In en, this message translates to:
@@ -1189,12 +1159,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Daily log'**
   String get dailyLog;
-
-  /// No description provided for @markdownHintPlaceholder.
-  ///
-  /// In en, this message translates to:
-  /// **'Supports Markdown syntax...\n\n# Heading\n**Bold** *Italic*\n- List item\n- [ ] Task'**
-  String get markdownHintPlaceholder;
 
   /// No description provided for @previewEmpty.
   ///

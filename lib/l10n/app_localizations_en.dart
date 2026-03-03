@@ -118,6 +118,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get time => 'Time';
 
   @override
+  String get date => 'Date';
+
+  @override
   String get dateAndTime => 'Date & Time';
 
   @override
@@ -451,6 +454,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timeNotSet => 'Not set';
 
   @override
+  String get timeOnlyNotAllowed => 'Time-only is not allowed';
+
+  @override
   String get quickOptions => 'Quick options';
 
   @override
@@ -512,27 +518,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get useSystemAlarmFallback => 'Add via system alarm app';
 
   @override
-  String get markdownSyntaxHint => 'Markdown Syntax';
-
-  @override
-  String get markdownHintBold => 'Bold';
-
-  @override
-  String get markdownHintItalic => 'Italic';
-
-  @override
-  String get markdownHintHeading => 'Heading';
-
-  @override
-  String get markdownHintList => 'Unordered list';
-
-  @override
-  String get markdownHintTask => 'Task item';
-
-  @override
-  String get markdownHintLink => 'Link';
-
-  @override
   String get draftFound => 'Draft found';
 
   @override
@@ -582,10 +567,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dailyLog => 'Daily log';
-
-  @override
-  String get markdownHintPlaceholder =>
-      'Supports Markdown syntax...\n\n# Heading\n**Bold** *Italic*\n- List item\n- [ ] Task';
 
   @override
   String get previewEmpty => '# Preview\n\nNo content';

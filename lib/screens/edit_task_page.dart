@@ -14,7 +14,6 @@ import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
-import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
 // Import Task view model from Home if you keep it there,
 // or duplicate the minimal fields you need here.
@@ -39,15 +38,7 @@ class _EditTaskPageState extends State<EditTaskPage> {
   bool _reminder = false;
   String? _reminderTime;
   bool _useSystemAlarm = false;
-  TimeKind _timeKind = TimeKind.startOnly;
-  String? _repeatRule;
-  final Set<int> _repeatWeekdays = {};
-  final Set<int> _repeatMonthDays = {};
-  final Map<int, Set<int>> _repeatYearMonthDays = {};
-  late DateTime _selectedDate;
-  late TimeOfDay _selectedTime;
-  DateTime? _selectedEndDate;
-  TimeOfDay? _selectedEndTime;
+  late DateTimeSectionState _scheduleState;
 
   // Action (optional, supports multiple)
   List<ActionItem> _actions = [];
@@ -81,25 +72,27 @@ class _EditTaskPageState extends State<EditTaskPage> {
       // Prefill toggles
       _reminder = _task.hasNotification;
       _useSystemAlarm = _task.useSystemAlarm;
-      _timeKind = _task.timeKind;
-
-      // Prefill date/time
-      _selectedDate = _parseDateOrNull(_task.date) ?? DateTime.now();
-      _selectedTime =
+      final selectedDate = _parseDateOrNull(_task.date) ?? DateTime.now();
+      final selectedTime =
           _parseTimeOrNull(_task.time) ?? const TimeOfDay(hour: 0, minute: 0);
-      _selectedEndDate = _parseDateOrNull(_task.endDate);
-      _selectedEndTime = _parseTimeOrNull(_task.endTime);
+      _scheduleState = DateTimeSectionState(
+        dateEnabled: (_task.date ?? '').trim().isNotEmpty,
+        timeEnabled: (_task.time ?? '').trim().isNotEmpty,
+        repeatEnabled: (_task.repeatRule ?? '').trim().isNotEmpty,
+        date: selectedDate,
+        time: selectedTime,
+        repeat: _repeatUiFromStorage(_task.repeatRule),
+      ).normalized();
       _reminderTime = ReminderRule.toLegacyUi(
         _task.reminderTime,
         occurrenceDateTime: DateTime(
-          _selectedDate.year,
-          _selectedDate.month,
-          _selectedDate.day,
-          _selectedTime.hour,
-          _selectedTime.minute,
+          selectedDate.year,
+          selectedDate.month,
+          selectedDate.day,
+          selectedTime.hour,
+          selectedTime.minute,
         ),
       );
-      _hydrateAllFromRule(_task.repeatRule);
 
       // Prefill action
       _actions = _task.actions ?? [];
@@ -144,16 +137,41 @@ class _EditTaskPageState extends State<EditTaskPage> {
     }
   }
 
-  void _hydrateAllFromRule(String? rule) {
-    final baseDate = _parseDateOrNull(_task.date);
-    final parsed = RepeatSelection.fromStorage(rule, baseDate: baseDate);
-    _repeatRule = parsed.toUiRule();
-    _repeatWeekdays.clear();
-    _repeatWeekdays.addAll(parsed.weekdays);
-    _repeatMonthDays.clear();
-    _repeatMonthDays.addAll(parsed.monthDays);
-    _repeatYearMonthDays.clear();
-    _repeatYearMonthDays.addAll(parsed.yearMonthDays);
+  RepeatUiConfig _repeatUiFromStorage(String? rule) {
+    final parsed = RepeatSelection.fromStorage(rule);
+    switch (parsed.frequency) {
+      case RepeatFrequency.weekly:
+        return RepeatUiConfig(
+          type: RepeatUiType.weekly,
+          weekdays: parsed.weekdays,
+        );
+      case RepeatFrequency.monthly:
+        return RepeatUiConfig(
+          type: RepeatUiType.monthly,
+          monthDays: parsed.monthDays,
+        );
+      case RepeatFrequency.daily:
+        return const RepeatUiConfig(type: RepeatUiType.daily);
+      default:
+        return const RepeatUiConfig(type: RepeatUiType.daily);
+    }
+  }
+
+  RepeatSelection _repeatSelectionFromState(RepeatUiConfig repeat) {
+    switch (repeat.type) {
+      case RepeatUiType.daily:
+        return const RepeatSelection(frequency: RepeatFrequency.daily);
+      case RepeatUiType.weekly:
+        return RepeatSelection(
+          frequency: RepeatFrequency.weekly,
+          weekdays: Set<int>.from(repeat.weekdays),
+        );
+      case RepeatUiType.monthly:
+        return RepeatSelection(
+          frequency: RepeatFrequency.monthly,
+          monthDays: Set<int>.from(repeat.monthDays),
+        );
+    }
   }
 
   // ===== Pickers =====
@@ -189,30 +207,24 @@ class _EditTaskPageState extends State<EditTaskPage> {
     }
 
     // Build display strings
-    final dateStr = _formatDate(_selectedDate);
-    final timeStr = _formatTime(_selectedTime);
-    final endDateStr =
-        _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
-    final endTimeStr =
-        _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
+    final dateStr =
+        _scheduleState.dateEnabled ? _formatDate(_scheduleState.date) : null;
+    final timeStr =
+        _scheduleState.timeEnabled ? _formatTime(_scheduleState.time) : null;
 
     final occurrenceDateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
+      _scheduleState.date.year,
+      _scheduleState.date.month,
+      _scheduleState.date.day,
+      _scheduleState.time.hour,
+      _scheduleState.time.minute,
     );
-    final repeatSelection = _timeKind == TimeKind.startOnly
-        ? RepeatSelection.fromUi(
-            rule: _repeatRule,
-            weekdays: _repeatWeekdays,
-            monthDays: _repeatMonthDays,
-            yearMonthDays: _repeatYearMonthDays,
-          )
+    final repeatSelection = _scheduleState.repeatEnabled
+        ? _repeatSelectionFromState(_scheduleState.repeat)
         : const RepeatSelection(frequency: RepeatFrequency.none);
     final normalizedRepeat = repeatSelection.toStorage();
-    final reminderStorage = _reminder
+    final reminderEnabled = _reminder && _scheduleState.timeEnabled;
+    final reminderStorage = reminderEnabled
         ? ReminderRule.fromUi(
             _reminderTime,
             occurrenceDateTime: occurrenceDateTime,
@@ -228,12 +240,12 @@ class _EditTaskPageState extends State<EditTaskPage> {
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
       time: timeStr,
       date: dateStr,
-      timeKind: _timeKind,
-      endTime: endTimeStr,
-      endDate: endDateStr,
-      hasNotification: _reminder,
+      timeKind: TimeKind.startOnly,
+      endTime: null,
+      endDate: null,
+      hasNotification: reminderEnabled,
       reminderTime: reminderStorage,
-      useSystemAlarm: _useSystemAlarm,
+      useSystemAlarm: reminderEnabled ? _useSystemAlarm : false,
       repeatRule: normalizedRepeat,
       completed: _task.completed,
       actions: validActions.isEmpty ? null : validActions,
@@ -242,13 +254,13 @@ class _EditTaskPageState extends State<EditTaskPage> {
     await TaskRepository().update(entity);
 
     if (mounted &&
-        _reminder &&
+        reminderEnabled &&
         _useSystemAlarm &&
         SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
-        taskDate: _selectedDate,
-        taskTime: _selectedTime,
+        taskDate: _scheduleState.date,
+        taskTime: _scheduleState.time,
       );
       if (hm != null && mounted) {
         await SystemAlarmService.instance.createAlarm(
@@ -334,26 +346,15 @@ class _EditTaskPageState extends State<EditTaskPage> {
               _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
               SizedBox(height: spacing),
               DateTimePickerSection(
-                timeKind: _timeKind,
-                selectedDate: _selectedDate,
-                selectedTime: _selectedTime,
-                onDateChanged: (d) => setState(() => _selectedDate = d),
-                onTimeChanged: (t) => setState(() => _selectedTime = t),
-                onTimeKindChanged: (k) => setState(() {
-                  _timeKind = k;
-                  if (k == TimeKind.both) {
-                    _selectedEndDate ??=
-                        _selectedDate.add(const Duration(days: 1));
-                    _selectedEndTime ??= _selectedTime;
-                  } else {
-                    _selectedEndDate = null;
-                    _selectedEndTime = null;
+                state: _scheduleState,
+                onChanged: (next) => setState(() {
+                  _scheduleState = next;
+                  if (!_scheduleState.timeEnabled) {
+                    _reminder = false;
+                    _reminderTime = null;
+                    _useSystemAlarm = false;
                   }
                 }),
-                selectedEndDate: _selectedEndDate,
-                selectedEndTime: _selectedEndTime,
-                onEndDateChanged: (d) => setState(() => _selectedEndDate = d),
-                onEndTimeChanged: (t) => setState(() => _selectedEndTime = t),
               ),
               SizedBox(height: bigSpacing),
 
@@ -370,43 +371,26 @@ class _EditTaskPageState extends State<EditTaskPage> {
               // 提醒（含重复，仅开始时间可重复）
               _FieldLabel(text: AppLocalizations.of(context)!.reminder),
               SizedBox(height: spacing),
-              if (_timeKind == TimeKind.startOnly)
-                RepeatPickerField(
-                  repeatRule: _repeatRule,
-                  repeatWeekdays: _repeatWeekdays,
-                  repeatMonthDays: _repeatMonthDays,
-                  repeatYearMonthDays: _repeatYearMonthDays,
-                  selectedTime: _selectedTime,
-                  onTimeChanged: (t) => setState(() =>
-                      _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
-                  showTimePicker: false,
-                  onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
-                    setState(() {
-                      _repeatRule = rule;
-                      _repeatWeekdays.clear();
-                      _repeatWeekdays.addAll(weekdays ?? {});
-                      _repeatMonthDays.clear();
-                      _repeatMonthDays.addAll(monthDays ?? {});
-                      _repeatYearMonthDays.clear();
-                      _repeatYearMonthDays.addAll(yearMonthDays ?? {});
-                    });
-                  },
+              if (_scheduleState.timeEnabled)
+                ReminderSettingField(
+                  reminderEnabled: _reminder,
+                  reminderTime: _reminderTime,
+                  taskDate: _scheduleState.date,
+                  taskTime: _scheduleState.time,
+                  onReminderChanged: (enabled, time) => setState(() {
+                    _reminder = enabled;
+                    _reminderTime = time;
+                  }),
+                  useSystemAlarm: _useSystemAlarm,
+                  onSystemAlarmChanged: Platform.isAndroid
+                      ? (v) => setState(() => _useSystemAlarm = v)
+                      : null,
                 ),
-              if (_timeKind == TimeKind.startOnly) const SizedBox(height: 12),
-              ReminderSettingField(
-                reminderEnabled: _reminder,
-                reminderTime: _reminderTime,
-                taskDate: _selectedDate,
-                taskTime: _selectedTime,
-                onReminderChanged: (enabled, time) => setState(() {
-                  _reminder = enabled;
-                  _reminderTime = time;
-                }),
-                useSystemAlarm: _useSystemAlarm,
-                onSystemAlarmChanged: Platform.isAndroid
-                    ? (v) => setState(() => _useSystemAlarm = v)
-                    : null,
-              ),
+              if (!_scheduleState.timeEnabled)
+                Text(
+                  '未启用时间，提醒不可用',
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                ),
               const SizedBox(height: 8),
             ],
           ),

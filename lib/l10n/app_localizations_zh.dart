@@ -113,6 +113,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get time => '时间';
 
   @override
+  String get date => '日期';
+
+  @override
   String get dateAndTime => '日期与时间';
 
   @override
@@ -443,6 +446,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get timeNotSet => '未设置';
 
   @override
+  String get timeOnlyNotAllowed => '不允许仅有时间';
+
+  @override
   String get quickOptions => '快捷选项';
 
   @override
@@ -504,27 +510,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get useSystemAlarmFallback => '使用系统界面添加';
 
   @override
-  String get markdownSyntaxHint => 'Markdown 语法提示';
-
-  @override
-  String get markdownHintBold => '粗体文字';
-
-  @override
-  String get markdownHintItalic => '斜体文字';
-
-  @override
-  String get markdownHintHeading => '一级标题';
-
-  @override
-  String get markdownHintList => '无序列表';
-
-  @override
-  String get markdownHintTask => '待办事项';
-
-  @override
-  String get markdownHintLink => '超链接';
-
-  @override
   String get draftFound => '发现草稿';
 
   @override
@@ -574,10 +559,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get dailyLog => '日志模板';
-
-  @override
-  String get markdownHintPlaceholder =>
-      '支持 Markdown 语法...\n\n# 标题\n**粗体** *斜体*\n- 列表项\n- [ ] 待办事项';
 
   @override
   String get previewEmpty => '# 预览\n\n暂无内容';
