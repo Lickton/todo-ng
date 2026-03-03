@@ -11,6 +11,7 @@ import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
+import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
@@ -89,7 +90,9 @@ class _AddTaskPageState extends State<AddTaskPage> {
     if (_hasIncompleteAction) {
       final hasMeetingIncomplete = _actions.any((a) =>
           a.type == 'meeting' &&
-          (a.data == null || a.data!.trim().isEmpty || !MeetingUtils.hasValidMeetingData(a.data!)));
+          (a.data == null ||
+              a.data!.trim().isEmpty ||
+              !MeetingUtils.hasValidMeetingData(a.data!)));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -104,33 +107,37 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     final dateStr = _formatDate(_selectedDate);
     final timeStr = _formatTime(_selectedTime);
-    final endDateStr = _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
-    final endTimeStr = _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
+    final endDateStr =
+        _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
+    final endTimeStr =
+        _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
 
-    // 仅开始时间可重复
-    String? repeatRule;
-    if (_timeKind != TimeKind.startOnly) {
-      repeatRule = null; // 仅开始时间可重复
-    } else if (_repeatRule == null || _repeatRule == 'No repeat') {
-      repeatRule = null;
-    } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
-      repeatRule = 'Weekly:${_repeatWeekdays.toList()..sort()}';
-    } else if (_repeatRule == 'Monthly' && _repeatMonthDays.isNotEmpty) {
-      repeatRule = 'Monthly:${_repeatMonthDays.toList()..sort()}';
-    } else if (_repeatRule == 'Yearly' && _repeatYearMonthDays.isNotEmpty) {
-      final parts = <String>[];
-      for (final e in _repeatYearMonthDays.entries) {
-        for (final d in e.value) {
-          parts.add('${e.key}-$d');
-        }
-      }
-      parts.sort();
-      repeatRule = 'Yearly:${parts.join(',')}';
-    } else {
-      repeatRule = _repeatRule;
-    }
+    final occurrenceDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    final repeatSelection = _timeKind == TimeKind.startOnly
+        ? RepeatSelection.fromUi(
+            rule: _repeatRule,
+            weekdays: _repeatWeekdays,
+            monthDays: _repeatMonthDays,
+            yearMonthDays: _repeatYearMonthDays,
+          )
+        : const RepeatSelection(frequency: RepeatFrequency.none);
+    final repeatRule = repeatSelection.toStorage();
+    final reminderStorage = _reminder
+        ? ReminderRule.fromUi(
+            _reminderTime,
+            occurrenceDateTime: occurrenceDateTime,
+          )?.toStorage()
+        : null;
 
-    final validActions = _actions.where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true)).toList();
+    final validActions = _actions
+        .where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true))
+        .toList();
     final entity = TaskEntity(
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
@@ -141,7 +148,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       endTime: endTimeStr,
       endDate: endDateStr,
       hasNotification: _reminder,
-      reminderTime: _reminder ? _reminderTime : null,
+      reminderTime: reminderStorage,
       useSystemAlarm: _useSystemAlarm,
       repeatRule: repeatRule,
       completed: false,
@@ -150,7 +157,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     await TaskRepository().add(entity);
 
-    if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
+    if (mounted &&
+        _reminder &&
+        _useSystemAlarm &&
+        SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
         taskDate: _selectedDate,
@@ -162,10 +172,14 @@ class _AddTaskPageState extends State<AddTaskPage> {
           minute: hm.$2,
           title: title,
           context: context,
-          getPermissionTitle: () => AppLocalizations.of(context)!.systemAlarmPermissionTitle,
-          getPermissionMessage: () => AppLocalizations.of(context)!.systemAlarmPermissionMessage,
-          getGoToSettingsLabel: () => AppLocalizations.of(context)!.goToSettings,
-          getCancelLabel: () => AppLocalizations.of(context)!.useSystemAlarmFallback,
+          getPermissionTitle: () =>
+              AppLocalizations.of(context)!.systemAlarmPermissionTitle,
+          getPermissionMessage: () =>
+              AppLocalizations.of(context)!.systemAlarmPermissionMessage,
+          getGoToSettingsLabel: () =>
+              AppLocalizations.of(context)!.goToSettings,
+          getCancelLabel: () =>
+              AppLocalizations.of(context)!.useSystemAlarmFallback,
         );
       }
     }
@@ -211,8 +225,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.only(
-                bottom: _isFullscreenMarkdown ? 24 : 120,
-              ).add(_screenHPad),
+            bottom: _isFullscreenMarkdown ? 24 : 120,
+          ).add(_screenHPad),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -258,7 +272,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 onTimeKindChanged: (k) => setState(() {
                   _timeKind = k;
                   if (k == TimeKind.both) {
-                    _selectedEndDate ??= _selectedDate.add(const Duration(days: 1));
+                    _selectedEndDate ??=
+                        _selectedDate.add(const Duration(days: 1));
                     _selectedEndTime ??= _selectedTime;
                   } else {
                     _selectedEndDate = null;
@@ -277,7 +292,8 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 showTitle: true,
                 initialActions: _actions,
                 onActionsChanged: (list) => setState(() => _actions = list),
-                onHasIncompleteChanged: (v) => setState(() => _hasIncompleteAction = v),
+                onHasIncompleteChanged: (v) =>
+                    setState(() => _hasIncompleteAction = v),
               ),
               SizedBox(height: bigSpacing),
 
@@ -292,31 +308,31 @@ class _AddTaskPageState extends State<AddTaskPage> {
                   repeatMonthDays: _repeatMonthDays,
                   repeatYearMonthDays: _repeatYearMonthDays,
                   selectedTime: _selectedTime,
-                  onTimeChanged: (t) => setState(() => _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
+                  onTimeChanged: (t) => setState(() =>
+                      _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
                   showTimePicker: false,
                   onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
-                  setState(() {
-                    _repeatRule = rule;
-                    _repeatWeekdays.clear();
-                    _repeatWeekdays.addAll(weekdays ?? {});
-                    _repeatMonthDays.clear();
-                    _repeatMonthDays.addAll(monthDays ?? {});
-                    _repeatYearMonthDays.clear();
-                    _repeatYearMonthDays.addAll(yearMonthDays ?? {});
-                  });
-                },
-              ),
+                    setState(() {
+                      _repeatRule = rule;
+                      _repeatWeekdays.clear();
+                      _repeatWeekdays.addAll(weekdays ?? {});
+                      _repeatMonthDays.clear();
+                      _repeatMonthDays.addAll(monthDays ?? {});
+                      _repeatYearMonthDays.clear();
+                      _repeatYearMonthDays.addAll(yearMonthDays ?? {});
+                    });
+                  },
+                ),
               if (_timeKind == TimeKind.startOnly) const SizedBox(height: 12),
               ReminderSettingField(
                 reminderEnabled: _reminder,
                 reminderTime: _reminderTime,
                 taskDate: _selectedDate,
                 taskTime: _selectedTime,
-                onReminderChanged: (enabled, time) =>
-                    setState(() {
-                      _reminder = enabled;
-                      _reminderTime = time;
-                    }),
+                onReminderChanged: (enabled, time) => setState(() {
+                  _reminder = enabled;
+                  _reminderTime = time;
+                }),
                 useSystemAlarm: _useSystemAlarm,
                 onSystemAlarmChanged: Platform.isAndroid
                     ? (v) => setState(() => _useSystemAlarm = v)
@@ -339,7 +355,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
                 32 + MediaQuery.of(context).viewInsets.bottom,
               ),
               child: SafeArea(
-
                 top: false,
                 child: SizedBox(
                   height: 56,
@@ -405,7 +420,8 @@ class _InputField extends StatelessWidget {
       maxLines: maxLines,
       decoration: InputDecoration(
         hintText: hint,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(

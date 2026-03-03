@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
+import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 
 /// 重复选择器：每天/每周/每月/每年/不重复
 /// - 每周：周一到周五
@@ -31,6 +32,7 @@ class RepeatPickerField extends StatefulWidget {
     Set<int>? monthDays,
     Map<int, Set<int>>? yearMonthDays,
   }) onChanged;
+
   /// 是否显示时间选择行（当日期时间在别处选择时为 false）
   final bool showTimePicker;
 
@@ -43,11 +45,7 @@ class _RepeatPickerFieldState extends State<RepeatPickerField> {
 
   /// 从存储的规则中提取基础类型（如 "Weekly:[1,2,3]" -> "Weekly"）
   String? get _baseRule {
-    final r = widget.repeatRule;
-    if (r == null || r.isEmpty || r == 'No repeat') return r;
-    final colon = r.indexOf(':');
-    if (colon > 0) return r.substring(0, colon);
-    return r;
+    return RepeatSelection.fromStorage(widget.repeatRule).toUiRule();
   }
 
   String _displayText(BuildContext context) {
@@ -107,8 +105,8 @@ class _RepeatPickerFieldState extends State<RepeatPickerField> {
                 ...options.map((opt) {
                   final rule = ruleMap[opt]!;
                   final base = _baseRule;
-                  final isSelected = (base == rule) ||
-                      (base == null && rule == 'No repeat');
+                  final isSelected =
+                      (base == rule) || (base == null && rule == 'No repeat');
                   return ListTile(
                     title: Text(opt),
                     selected: isSelected,
@@ -123,14 +121,14 @@ class _RepeatPickerFieldState extends State<RepeatPickerField> {
     );
 
     if (selected != null) {
-      final weekdays = selected == 'Weekly'
-          ? Set<int>.from(widget.repeatWeekdays)
+      final weekdays =
+          selected == 'Weekly' ? Set<int>.from(widget.repeatWeekdays) : <int>{};
+      final monthDays = selected == 'Monthly'
+          ? Set<int>.from(widget.repeatMonthDays)
           : <int>{};
-      final monthDays =
-          selected == 'Monthly' ? Set<int>.from(widget.repeatMonthDays) : <int>{};
       final yearMonthDays = selected == 'Yearly'
-          ? Map<int, Set<int>>.from(
-              widget.repeatYearMonthDays.map((k, v) => MapEntry(k, Set<int>.from(v))))
+          ? Map<int, Set<int>>.from(widget.repeatYearMonthDays
+              .map((k, v) => MapEntry(k, Set<int>.from(v))))
           : <int, Set<int>>{};
       widget.onChanged(selected == 'No repeat' ? null : selected,
           weekdays: weekdays,
@@ -231,8 +229,7 @@ class _RepeatPickerFieldState extends State<RepeatPickerField> {
           _YearlyPicker(
             yearMonthDays: widget.repeatYearMonthDays,
             viewMonth: _yearlyViewMonth,
-            onViewMonthChanged: (m) =>
-                setState(() => _yearlyViewMonth = m),
+            onViewMonthChanged: (m) => setState(() => _yearlyViewMonth = m),
             onChanged: (next) =>
                 widget.onChanged('Yearly', yearMonthDays: next),
           ),
@@ -305,7 +302,8 @@ class _TimePickerRow extends StatelessWidget {
               ),
               if (hasValue && onClear != null)
                 IconButton(
-                  icon: const Icon(Icons.close, size: 20, color: Colors.black54),
+                  icon:
+                      const Icon(Icons.close, size: 20, color: Colors.black54),
                   onPressed: onClear,
                 ),
             ],
@@ -420,7 +418,18 @@ class _YearlyPicker extends StatelessWidget {
   final void Function(Map<int, Set<int>>) onChanged;
 
   static const List<int> _daysInMonth = [
-    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+    31,
+    28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31
   ];
 
   int _daysForMonth(int month) => _daysInMonth[month - 1];
@@ -429,8 +438,7 @@ class _YearlyPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final locale = Localizations.localeOf(context).toString();
     final monthNames = List.generate(
-        12,
-        (i) => DateFormat.MMM(locale).format(DateTime(2000, i + 1, 1)));
+        12, (i) => DateFormat.MMM(locale).format(DateTime(2000, i + 1, 1)));
     final daysInView = _daysForMonth(viewMonth);
     const cols = 7;
     final rows = (daysInView / cols).ceil();
@@ -482,7 +490,9 @@ class _YearlyPicker extends StatelessWidget {
               child: Row(
                 children: List.generate(cols, (col) {
                   final day = row * cols + col + 1;
-                  if (day > daysInView) return const Expanded(child: SizedBox());
+                  if (day > daysInView) {
+                    return const Expanded(child: SizedBox());
+                  }
                   final selected =
                       (yearMonthDays[viewMonth] ?? {}).contains(day);
                   return Expanded(
@@ -499,7 +509,9 @@ class _YearlyPicker extends StatelessWidget {
                           next.putIfAbsent(viewMonth, () => <int>{});
                           if (selected) {
                             next[viewMonth]!.remove(day);
-                            if (next[viewMonth]!.isEmpty) next.remove(viewMonth);
+                            if (next[viewMonth]!.isEmpty) {
+                              next.remove(viewMonth);
+                            }
                           } else {
                             next[viewMonth]!.add(day);
                           }

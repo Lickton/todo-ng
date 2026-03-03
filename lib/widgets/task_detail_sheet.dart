@@ -10,6 +10,7 @@ import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/utils/meeting_utils.dart';
+import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
 import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
@@ -76,16 +77,25 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
     _priority = _task.priority;
     _reminder = _task.hasNotification;
-    _reminderTime = _task.reminderTime;
     _useSystemAlarm = _task.useSystemAlarm;
-    _repeatRule = _task.repeatRule;
-    _hydrateAllFromRule(_repeatRule);
     _timeKind = _task.timeKind;
 
     _selectedDate = _parseDateOrNull(_task.date) ?? DateTime.now();
-    _selectedTime = _parseTimeOrNull(_task.time) ?? const TimeOfDay(hour: 0, minute: 0);
+    _selectedTime =
+        _parseTimeOrNull(_task.time) ?? const TimeOfDay(hour: 0, minute: 0);
     _selectedEndDate = _parseDateOrNull(_task.endDate);
     _selectedEndTime = _parseTimeOrNull(_task.endTime);
+    _reminderTime = ReminderRule.toLegacyUi(
+      _task.reminderTime,
+      occurrenceDateTime: DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        _selectedTime.hour,
+        _selectedTime.minute,
+      ),
+    );
+    _hydrateAllFromRule(_task.repeatRule);
 
     _actions = _task.actions ?? [];
   }
@@ -125,35 +135,15 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   }
 
   void _hydrateAllFromRule(String? rule) {
+    final baseDate = _parseDateOrNull(_task.date);
+    final parsed = RepeatSelection.fromStorage(rule, baseDate: baseDate);
+    _repeatRule = parsed.toUiRule();
     _repeatWeekdays.clear();
+    _repeatWeekdays.addAll(parsed.weekdays);
     _repeatMonthDays.clear();
+    _repeatMonthDays.addAll(parsed.monthDays);
     _repeatYearMonthDays.clear();
-    if (rule == null) return;
-    final colon = rule.indexOf(':');
-    if (colon < 0 || colon + 1 >= rule.length) return;
-    final suffix = rule.substring(colon + 1).trim();
-    if (rule.startsWith('Weekly')) {
-      for (final s in suffix.split(RegExp(r'[,\s\[\]]+'))) {
-        final v = int.tryParse(s.trim());
-        if (v != null && v >= 1 && v <= 7) _repeatWeekdays.add(v);
-      }
-    } else if (rule.startsWith('Monthly')) {
-      for (final s in suffix.split(RegExp(r'[,\s\[\]]+'))) {
-        final v = int.tryParse(s.trim());
-        if (v != null && v >= 1 && v <= 31) _repeatMonthDays.add(v);
-      }
-    } else if (rule.startsWith('Yearly')) {
-      for (final part in suffix.split(',')) {
-        final dash = part.indexOf('-');
-        if (dash > 0 && dash < part.length - 1) {
-          final m = int.tryParse(part.substring(0, dash).trim());
-          final d = int.tryParse(part.substring(dash + 1).trim());
-          if (m != null && d != null && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
-            _repeatYearMonthDays.putIfAbsent(m, () => {}).add(d);
-          }
-        }
-      }
-    }
+    _repeatYearMonthDays.addAll(parsed.yearMonthDays);
   }
 
   Future<void> _save() async {
@@ -186,34 +176,36 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
     final dateStr = _formatDate(_selectedDate);
     final timeStr = _formatTime(_selectedTime);
-    final endDateStr = _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
-    final endTimeStr = _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
+    final endDateStr =
+        _selectedEndDate != null ? _formatDate(_selectedEndDate!) : null;
+    final endTimeStr =
+        _selectedEndTime != null ? _formatTime(_selectedEndTime!) : null;
 
-    String? normalizedRepeat;
-    if (_timeKind != TimeKind.startOnly) {
-      normalizedRepeat = null;
-    } else if (_repeatRule == null || _repeatRule == 'No repeat') {
-      normalizedRepeat = null;
-    } else if (_repeatRule == 'Weekly' && _repeatWeekdays.isNotEmpty) {
-      normalizedRepeat = 'Weekly:${_repeatWeekdays.toList()..sort()}';
-    } else if (_repeatRule == 'Monthly' && _repeatMonthDays.isNotEmpty) {
-      normalizedRepeat = 'Monthly:${_repeatMonthDays.toList()..sort()}';
-    } else if (_repeatRule == 'Yearly' && _repeatYearMonthDays.isNotEmpty) {
-      final parts = <String>[];
-      for (final e in _repeatYearMonthDays.entries) {
-        for (final d in e.value) {
-          parts.add('${e.key}-$d');
-        }
-      }
-      parts.sort();
-      normalizedRepeat = 'Yearly:${parts.join(',')}';
-    } else {
-      normalizedRepeat = _repeatRule;
-    }
+    final occurrenceDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+    final repeatSelection = _timeKind == TimeKind.startOnly
+        ? RepeatSelection.fromUi(
+            rule: _repeatRule,
+            weekdays: _repeatWeekdays,
+            monthDays: _repeatMonthDays,
+            yearMonthDays: _repeatYearMonthDays,
+          )
+        : const RepeatSelection(frequency: RepeatFrequency.none);
+    final normalizedRepeat = repeatSelection.toStorage();
+    final reminderStorage = _reminder
+        ? ReminderRule.fromUi(
+            _reminderTime,
+            occurrenceDateTime: occurrenceDateTime,
+          )?.toStorage()
+        : null;
 
     final validActions = _actions
-        .where((a) =>
-            a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true))
+        .where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true))
         .toList();
     final desc = _descCtrl.text.trim().isEmpty ? null : _descCtrl.text;
     if (kDebugMode && desc != null) {
@@ -234,7 +226,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       endTime: endTimeStr,
       endDate: endDateStr,
       hasNotification: _reminder,
-      reminderTime: _reminder ? _reminderTime : null,
+      reminderTime: reminderStorage,
       useSystemAlarm: _useSystemAlarm,
       repeatRule: normalizedRepeat,
       completed: _task.completed,
@@ -246,7 +238,10 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       debugPrint('[TaskDetailSheet] update 返回 rowsUpdated=$rowsUpdated');
     }
 
-    if (mounted && _reminder && _useSystemAlarm && SystemAlarmService.instance.isSupported) {
+    if (mounted &&
+        _reminder &&
+        _useSystemAlarm &&
+        SystemAlarmService.instance.isSupported) {
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
         taskDate: _selectedDate,
@@ -258,10 +253,14 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           minute: hm.$2,
           title: title,
           context: context,
-          getPermissionTitle: () => AppLocalizations.of(context)!.systemAlarmPermissionTitle,
-          getPermissionMessage: () => AppLocalizations.of(context)!.systemAlarmPermissionMessage,
-          getGoToSettingsLabel: () => AppLocalizations.of(context)!.goToSettings,
-          getCancelLabel: () => AppLocalizations.of(context)!.useSystemAlarmFallback,
+          getPermissionTitle: () =>
+              AppLocalizations.of(context)!.systemAlarmPermissionTitle,
+          getPermissionMessage: () =>
+              AppLocalizations.of(context)!.systemAlarmPermissionMessage,
+          getGoToSettingsLabel: () =>
+              AppLocalizations.of(context)!.goToSettings,
+          getCancelLabel: () =>
+              AppLocalizations.of(context)!.useSystemAlarmFallback,
         );
       }
     }
@@ -390,7 +389,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
             flushRequested: _descFlushRequested,
           ),
           const SizedBox(height: bigSpacing),
-
           _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),
           const SizedBox(height: spacing),
           DateTimePickerSection(
@@ -415,7 +413,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
             onEndTimeChanged: (t) => setState(() => _selectedEndTime = t),
           ),
           const SizedBox(height: bigSpacing),
-
           ActionSelector(
             showTitle: true,
             initialActions: _actions,
@@ -424,41 +421,40 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                 setState(() => _hasIncompleteAction = v),
           ),
           const SizedBox(height: bigSpacing),
-
           _FieldLabel(text: AppLocalizations.of(context)!.reminder),
           const SizedBox(height: spacing),
           if (_timeKind == TimeKind.startOnly)
             RepeatPickerField(
               repeatRule: _repeatRule,
-            repeatWeekdays: _repeatWeekdays,
-            repeatMonthDays: _repeatMonthDays,
-            repeatYearMonthDays: _repeatYearMonthDays,
-            selectedTime: _selectedTime,
-            onTimeChanged: (t) => setState(() => _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
-            showTimePicker: false,
-            onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
-              setState(() {
-                _repeatRule = rule;
-                _repeatWeekdays.clear();
-                _repeatWeekdays.addAll(weekdays ?? {});
-                _repeatMonthDays.clear();
-                _repeatMonthDays.addAll(monthDays ?? {});
-                _repeatYearMonthDays.clear();
-                _repeatYearMonthDays.addAll(yearMonthDays ?? {});
-              });
-            },
-          ),
+              repeatWeekdays: _repeatWeekdays,
+              repeatMonthDays: _repeatMonthDays,
+              repeatYearMonthDays: _repeatYearMonthDays,
+              selectedTime: _selectedTime,
+              onTimeChanged: (t) => setState(() =>
+                  _selectedTime = t ?? const TimeOfDay(hour: 0, minute: 0)),
+              showTimePicker: false,
+              onChanged: (rule, {weekdays, monthDays, yearMonthDays}) {
+                setState(() {
+                  _repeatRule = rule;
+                  _repeatWeekdays.clear();
+                  _repeatWeekdays.addAll(weekdays ?? {});
+                  _repeatMonthDays.clear();
+                  _repeatMonthDays.addAll(monthDays ?? {});
+                  _repeatYearMonthDays.clear();
+                  _repeatYearMonthDays.addAll(yearMonthDays ?? {});
+                });
+              },
+            ),
           if (_timeKind == TimeKind.startOnly) const SizedBox(height: 12),
           ReminderSettingField(
             reminderEnabled: _reminder,
             reminderTime: _reminderTime,
             taskDate: _selectedDate,
             taskTime: _selectedTime,
-            onReminderChanged: (enabled, time) =>
-                setState(() {
-                  _reminder = enabled;
-                  _reminderTime = time;
-                }),
+            onReminderChanged: (enabled, time) => setState(() {
+              _reminder = enabled;
+              _reminderTime = time;
+            }),
             useSystemAlarm: _useSystemAlarm,
             onSystemAlarmChanged: Platform.isAndroid
                 ? (v) => setState(() => _useSystemAlarm = v)
@@ -509,7 +505,8 @@ class _InputField extends StatelessWidget {
       maxLines: maxLines,
       decoration: InputDecoration(
         hintText: hint,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(

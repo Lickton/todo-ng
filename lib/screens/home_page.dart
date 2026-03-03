@@ -8,6 +8,7 @@ import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/utils/priority_utils.dart';
+import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/action_button.dart';
 import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
 
@@ -62,17 +63,17 @@ class _HomePageState extends State<HomePage> {
   final List<Task> _tasks = [];
 
   // ---- Filter state ----
-  DateTime? _fltDate;        // match by formatted dd/MM/yy vs task.date
-  TimeOfDay? _fltTime;       // match by formatted h:mm a vs task.time
+  DateTime? _fltDate; // match by formatted dd/MM/yy vs task.date
+  TimeOfDay? _fltTime; // match by formatted h:mm a vs task.time
   /// null=仅未完成(默认，勾选后消失), true=仅已完成, false=全部
   bool? _fltCompleted;
-  String? _fltRepeat;        // "Daily"|"Weekly"|"Monthly"|null=any
-  bool? _fltReminder;        // true=hasNotification, false=no, null=any
+  String? _fltRepeat; // "Daily"|"Weekly"|"Monthly"|null=any
+  bool? _fltReminder; // true=hasNotification, false=no, null=any
   TaskPriority? _fltPriority; // null=any
 
   String _fmtDate(DateTime d) => DateFormat('dd/MM/yy').format(d); // [web:146]
-  String _fmtTime(TimeOfDay t) =>
-      DateFormat('h:mm a').format(DateTime(0, 1, 1, t.hour, t.minute)); // [web:146]
+  String _fmtTime(TimeOfDay t) => DateFormat('h:mm a')
+      .format(DateTime(0, 1, 1, t.hour, t.minute)); // [web:146]
 
   // Filtered + ordered (incomplete first, completed last)
   List<Task> get _filteredTasks {
@@ -95,12 +96,9 @@ class _HomePageState extends State<HomePage> {
     // _fltCompleted == false 表示「任意」，不筛选
     if (_fltRepeat != null) {
       it = it.where((t) {
-        final r = (t.repeatRule ?? '').trim();
-        if (r.isEmpty) return false;
-        if (_fltRepeat == 'Weekly') return r.startsWith('Weekly');
-        if (_fltRepeat == 'Monthly') return r.startsWith('Monthly');
-        if (_fltRepeat == 'Yearly') return r.startsWith('Yearly');
-        return r == _fltRepeat;
+        final ui = RepeatSelection.fromStorage(t.repeatRule).toUiRule();
+        if (ui == 'No repeat') return false;
+        return ui == _fltRepeat;
       });
     }
     if (_fltReminder != null) {
@@ -155,22 +153,22 @@ class _HomePageState extends State<HomePage> {
     final rows = await TaskRepository().fetchAll();
     final mapped = rows
         .map((e) => Task(
-      id: e.id!,
-      title: e.title,
-      description: e.description,
-      time: e.time,
-      date: e.date,
-      timeKind: e.timeKind,
-      endTime: e.endTime,
-      endDate: e.endDate,
-      hasNotification: e.hasNotification,
-      reminderTime: e.reminderTime,
-      useSystemAlarm: e.useSystemAlarm,
-      repeatRule: e.repeatRule,
-      completed: e.completed,
-      priority: e.priority,
-      actions: e.actions,
-    ))
+              id: e.id!,
+              title: e.title,
+              description: e.description,
+              time: e.time,
+              date: e.date,
+              timeKind: e.timeKind,
+              endTime: e.endTime,
+              endDate: e.endDate,
+              hasNotification: e.hasNotification,
+              reminderTime: e.reminderTime,
+              useSystemAlarm: e.useSystemAlarm,
+              repeatRule: e.repeatRule,
+              completed: e.completed,
+              priority: e.priority,
+              actions: e.actions,
+            ))
         .toList();
 
     if (!mounted) return;
@@ -188,7 +186,8 @@ class _HomePageState extends State<HomePage> {
     if (mounted && markingComplete) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.taskCompletedMessage(t.title)),
+          content:
+              Text(AppLocalizations.of(context)!.taskCompletedMessage(t.title)),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -208,7 +207,8 @@ class _HomePageState extends State<HomePage> {
 
   // ---- Filter bottom sheet ----
   Future<void> _openFilterSheet() async {
-    await showModalBottomSheet<void>( // [web:146][web:148]
+    await showModalBottomSheet<void>(
+      // [web:146][web:148]
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
@@ -216,7 +216,8 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return StatefulBuilder( // local state inside sheet [web:145][web:154][web:158]
+        return StatefulBuilder(
+          // local state inside sheet [web:145][web:154][web:158]
           builder: (context, setSheetState) {
             Future<void> pickDate() async {
               final now = DateTime.now();
@@ -239,21 +240,27 @@ class _HomePageState extends State<HomePage> {
               if (picked != null) setSheetState(() => _fltTime = picked);
             }
 
-            Widget priorityChip(TaskPriority p, TaskPriority? current, void Function(void Function()) setSheetState) {
+            Widget priorityChip(TaskPriority p, TaskPriority? current,
+                void Function(void Function()) setSheetState) {
               final selected = current == p;
               final color = PriorityUtils.colorOf(p);
-              final label = p == TaskPriority.red ? AppLocalizations.of(context)!.priorityRed
-                  : p == TaskPriority.yellow ? AppLocalizations.of(context)!.priorityYellow
-                  : p == TaskPriority.blue ? AppLocalizations.of(context)!.priorityBlue
-                  : AppLocalizations.of(context)!.priorityWhite;
+              final label = p == TaskPriority.red
+                  ? AppLocalizations.of(context)!.priorityRed
+                  : p == TaskPriority.yellow
+                      ? AppLocalizations.of(context)!.priorityYellow
+                      : p == TaskPriority.blue
+                          ? AppLocalizations.of(context)!.priorityBlue
+                          : AppLocalizations.of(context)!.priorityWhite;
               return Material(
                 color: selected ? color : Colors.white,
-                shape: StadiumBorder(side: BorderSide(color: color, width: selected ? 0 : 2)),
+                shape: StadiumBorder(
+                    side: BorderSide(color: color, width: selected ? 0 : 2)),
                 child: InkWell(
                   onTap: () => setSheetState(() => _fltPriority = p),
                   customBorder: const StadiumBorder(),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -266,7 +273,10 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(label, style: TextStyle(color: selected ? Colors.white : Colors.black, fontWeight: FontWeight.w700)),
+                        Text(label,
+                            style: TextStyle(
+                                color: selected ? Colors.white : Colors.black,
+                                fontWeight: FontWeight.w700)),
                       ],
                     ),
                   ),
@@ -279,13 +289,17 @@ class _HomePageState extends State<HomePage> {
               final fg = selected ? Colors.white : Colors.black;
               return Material(
                 color: bg,
-                shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
+                shape: StadiumBorder(
+                    side: BorderSide(color: Colors.grey.shade300)),
                 child: InkWell(
                   onTap: onTap,
                   customBorder: const StadiumBorder(),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Text(label,
+                        style:
+                            TextStyle(color: fg, fontWeight: FontWeight.w700)),
                   ),
                 ),
               );
@@ -314,99 +328,144 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       Text(AppLocalizations.of(context)!.dateAndTime,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black)),
                       const SizedBox(height: 12),
-
                       _PickerRow(
                         icon: Icons.calendar_today,
-                        label: _fltDate != null ? _fmtDate(_fltDate!) : AppLocalizations.of(context)!.setDate,
+                        label: _fltDate != null
+                            ? _fmtDate(_fltDate!)
+                            : AppLocalizations.of(context)!.setDate,
                         hasValue: _fltDate != null,
                         onTap: pickDate,
-                        onClear: _fltDate != null ? () => setSheetState(() => _fltDate = null) : null,
+                        onClear: _fltDate != null
+                            ? () => setSheetState(() => _fltDate = null)
+                            : null,
                       ),
                       const SizedBox(height: 12),
                       _PickerRow(
                         icon: Icons.access_time,
-                        label: _fltTime != null ? _fmtTime(_fltTime!) : AppLocalizations.of(context)!.setTime,
+                        label: _fltTime != null
+                            ? _fmtTime(_fltTime!)
+                            : AppLocalizations.of(context)!.setTime,
                         hasValue: _fltTime != null,
                         onTap: pickTime,
-                        onClear: _fltTime != null ? () => setSheetState(() => _fltTime = null) : null,
+                        onClear: _fltTime != null
+                            ? () => setSheetState(() => _fltTime = null)
+                            : null,
                       ),
-
                       const SizedBox(height: 20),
                       Text(AppLocalizations.of(context)!.completionStatus,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          chip(AppLocalizations.of(context)!.completed, _fltCompleted == true,
-                                  () => setSheetState(() => _fltCompleted = true)),
-                          chip(AppLocalizations.of(context)!.incomplete, _fltCompleted == null,
-                                  () => setSheetState(() => _fltCompleted = null)),
-                          chip(AppLocalizations.of(context)!.any, _fltCompleted == false,
-                                  () => setSheetState(() => _fltCompleted = false)),
+                          chip(
+                              AppLocalizations.of(context)!.completed,
+                              _fltCompleted == true,
+                              () => setSheetState(() => _fltCompleted = true)),
+                          chip(
+                              AppLocalizations.of(context)!.incomplete,
+                              _fltCompleted == null,
+                              () => setSheetState(() => _fltCompleted = null)),
+                          chip(
+                              AppLocalizations.of(context)!.any,
+                              _fltCompleted == false,
+                              () => setSheetState(() => _fltCompleted = false)),
                         ],
                       ),
-
                       const SizedBox(height: 20),
                       Text(AppLocalizations.of(context)!.repeat,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          chip(AppLocalizations.of(context)!.daily, _fltRepeat == 'Daily',
-                                  () => setSheetState(() => _fltRepeat = 'Daily')),
-                          chip(AppLocalizations.of(context)!.weekly, _fltRepeat == 'Weekly',
-                                  () => setSheetState(() => _fltRepeat = 'Weekly')),
-                          chip(AppLocalizations.of(context)!.monthly, _fltRepeat == 'Monthly',
-                                  () => setSheetState(() => _fltRepeat = 'Monthly')),
-                          chip(AppLocalizations.of(context)!.yearly, _fltRepeat == 'Yearly',
-                                  () => setSheetState(() => _fltRepeat = 'Yearly')),
-                          chip(AppLocalizations.of(context)!.noRepeat, _fltRepeat == null,
-                                  () => setSheetState(() => _fltRepeat = null)),
+                          chip(
+                              AppLocalizations.of(context)!.daily,
+                              _fltRepeat == 'Daily',
+                              () => setSheetState(() => _fltRepeat = 'Daily')),
+                          chip(
+                              AppLocalizations.of(context)!.weekly,
+                              _fltRepeat == 'Weekly',
+                              () => setSheetState(() => _fltRepeat = 'Weekly')),
+                          chip(
+                              AppLocalizations.of(context)!.monthly,
+                              _fltRepeat == 'Monthly',
+                              () =>
+                                  setSheetState(() => _fltRepeat = 'Monthly')),
+                          chip(
+                              AppLocalizations.of(context)!.yearly,
+                              _fltRepeat == 'Yearly',
+                              () => setSheetState(() => _fltRepeat = 'Yearly')),
+                          chip(
+                              AppLocalizations.of(context)!.noRepeat,
+                              _fltRepeat == null,
+                              () => setSheetState(() => _fltRepeat = null)),
                         ],
                       ),
-
                       const SizedBox(height: 20),
                       Text(AppLocalizations.of(context)!.reminders,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          chip(AppLocalizations.of(context)!.on, _fltReminder == true,
-                                  () => setSheetState(() => _fltReminder = true)),
-                          chip(AppLocalizations.of(context)!.off, _fltReminder == false,
-                                  () => setSheetState(() => _fltReminder = false)),
-                          chip(AppLocalizations.of(context)!.any, _fltReminder == null,
-                                  () => setSheetState(() => _fltReminder = null)),
+                          chip(
+                              AppLocalizations.of(context)!.on,
+                              _fltReminder == true,
+                              () => setSheetState(() => _fltReminder = true)),
+                          chip(
+                              AppLocalizations.of(context)!.off,
+                              _fltReminder == false,
+                              () => setSheetState(() => _fltReminder = false)),
+                          chip(
+                              AppLocalizations.of(context)!.any,
+                              _fltReminder == null,
+                              () => setSheetState(() => _fltReminder = null)),
                         ],
                       ),
-
                       const SizedBox(height: 20),
                       Text(AppLocalizations.of(context)!.priority,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black)),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black)),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          priorityChip(TaskPriority.red, _fltPriority, setSheetState),
-                          priorityChip(TaskPriority.yellow, _fltPriority, setSheetState),
-                          priorityChip(TaskPriority.blue, _fltPriority, setSheetState),
-                          priorityChip(TaskPriority.white, _fltPriority, setSheetState),
-                          chip(AppLocalizations.of(context)!.any, _fltPriority == null,
-                                  () => setSheetState(() => _fltPriority = null)),
+                          priorityChip(
+                              TaskPriority.red, _fltPriority, setSheetState),
+                          priorityChip(
+                              TaskPriority.yellow, _fltPriority, setSheetState),
+                          priorityChip(
+                              TaskPriority.blue, _fltPriority, setSheetState),
+                          priorityChip(
+                              TaskPriority.white, _fltPriority, setSheetState),
+                          chip(
+                              AppLocalizations.of(context)!.any,
+                              _fltPriority == null,
+                              () => setSheetState(() => _fltPriority = null)),
                         ],
                       ),
-
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -426,7 +485,8 @@ class _HomePageState extends State<HomePage> {
                             Navigator.pop(context); // close sheet
                             setState(() {}); // apply filters to list
                           },
-                          child: Text(AppLocalizations.of(context)!.applyFilter),
+                          child:
+                              Text(AppLocalizations.of(context)!.applyFilter),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -442,7 +502,8 @@ class _HomePageState extends State<HomePage> {
                               _fltPriority = null;
                             });
                           },
-                          child: Text(AppLocalizations.of(context)!.clearSelections),
+                          child: Text(
+                              AppLocalizations.of(context)!.clearSelections),
                         ),
                       ),
                     ],
@@ -464,99 +525,100 @@ class _HomePageState extends State<HomePage> {
         closeWhenOpened: true,
         closeWhenTapped: true,
         child: CustomScrollView(
-        slivers: [
-          // Header
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding(context),
-                verticalPadding(context),
-                horizontalPadding(context),
-                12,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Today + Filter
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        AppLocalizations.of(context)!.today,
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 24,
-                          height: 1.3,
-                        ),
-                      ),
-                      const Spacer(),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(minWidth: 96, minHeight: 48),
-                        child: _FilterChipButton(
-                          label: AppLocalizations.of(context)!.filter,
-                          onTap: _openFilterSheet, // open bottom sheet
-                          height: 36,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Task list (uses filtered tasks)
-          SliverList.separated(
-            itemBuilder: (context, index) {
-              final task = _filteredTasks[index];
-              final tile = InkWell(
-                onTap: () async {
-                  final result = await showModalBottomSheet<bool>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    barrierColor: Colors.black54,
-                    builder: (context) => TaskDetailSheet(task: task),
-                  );
-                  if (result == true) await _load();
-                },
-                child: TaskTile(task: task, onToggle: () => _toggle(task)),
-              );
-              return Slidable(
-                key: ValueKey(task.id),
-                groupTag: 'home_tasks',
-                endActionPane: ActionPane(
-                  motion: const ScrollMotion(),
-                  extentRatio: 0.25,
+          slivers: [
+            // Header
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  horizontalPadding(context),
+                  verticalPadding(context),
+                  horizontalPadding(context),
+                  12,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CustomSlidableAction(
-                      onPressed: (_) => _delete(task),
-                      backgroundColor: Colors.red.shade400,
-                      foregroundColor: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: const Icon(Icons.delete_outline, size: 24),
+                    // Today + Filter
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!.today,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 24,
+                            height: 1.3,
+                          ),
+                        ),
+                        const Spacer(),
+                        ConstrainedBox(
+                          constraints:
+                              const BoxConstraints(minWidth: 96, minHeight: 48),
+                          child: _FilterChipButton(
+                            label: AppLocalizations.of(context)!.filter,
+                            onTap: _openFilterSheet, // open bottom sheet
+                            height: 36,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                child: tile,
-              );
-            },
-            separatorBuilder: (_, __) => const Padding(
-              padding: EdgeInsets.only(left: 72, right: 16),
-              child: Column(
-                children: [
-                  SizedBox(height: 8),
-                  Divider(height: 1),
-                  SizedBox(height: 8),
-                ],
               ),
             ),
-            itemCount: _filteredTasks.length,
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 96)),
-        ],
+
+            // Task list (uses filtered tasks)
+            SliverList.separated(
+              itemBuilder: (context, index) {
+                final task = _filteredTasks[index];
+                final tile = InkWell(
+                  onTap: () async {
+                    final result = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      barrierColor: Colors.black54,
+                      builder: (context) => TaskDetailSheet(task: task),
+                    );
+                    if (result == true) await _load();
+                  },
+                  child: TaskTile(task: task, onToggle: () => _toggle(task)),
+                );
+                return Slidable(
+                  key: ValueKey(task.id),
+                  groupTag: 'home_tasks',
+                  endActionPane: ActionPane(
+                    motion: const ScrollMotion(),
+                    extentRatio: 0.25,
+                    children: [
+                      CustomSlidableAction(
+                        onPressed: (_) => _delete(task),
+                        backgroundColor: Colors.red.shade400,
+                        foregroundColor: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: const Icon(Icons.delete_outline, size: 24),
+                      ),
+                    ],
+                  ),
+                  child: tile,
+                );
+              },
+              separatorBuilder: (_, __) => const Padding(
+                padding: EdgeInsets.only(left: 72, right: 16),
+                child: Column(
+                  children: [
+                    SizedBox(height: 8),
+                    Divider(height: 1),
+                    SizedBox(height: 8),
+                  ],
+                ),
+              ),
+              itemCount: _filteredTasks.length,
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 96)),
+          ],
         ),
       ),
     );
@@ -608,7 +670,7 @@ class _FilterChipButton extends StatelessWidget {
                     height: 18,
                     width: 18,
                     colorFilter:
-                    const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
+                        const ColorFilter.mode(Colors.black87, BlendMode.srcIn),
                   ),
                 ],
               ),
@@ -716,7 +778,8 @@ class _IncompleteContent extends StatelessWidget {
 
     final List<Widget> meta = [];
     if (task.time != null) {
-      meta.add(_Meta(icon: Icons.access_time, text: task.time!, style: metaStyle));
+      meta.add(
+          _Meta(icon: Icons.access_time, text: task.time!, style: metaStyle));
     }
     if (task.date != null) {
       meta.add(_Meta(icon: Icons.event, text: task.date!, style: metaStyle));
@@ -725,7 +788,10 @@ class _IncompleteContent extends StatelessWidget {
       meta.add(_Meta(icon: Icons.notifications, text: '', style: metaStyle));
     }
     if ((task.repeatRule ?? '').isNotEmpty) {
-      meta.add(_Meta(icon: Icons.repeat, text: task.repeatRule!, style: metaStyle));
+      final rule = RepeatSelection.fromStorage(task.repeatRule).toUiRule();
+      if (rule != 'No repeat') {
+        meta.add(_Meta(icon: Icons.repeat, text: rule, style: metaStyle));
+      }
     }
 
     return Column(
@@ -844,7 +910,8 @@ class _PickerRow extends StatelessWidget {
               if (hasValue && onClear != null)
                 IconButton(
                   tooltip: AppLocalizations.of(context)!.clear,
-                  icon: const Icon(Icons.close, size: 20, color: Colors.black54),
+                  icon:
+                      const Icon(Icons.close, size: 20, color: Colors.black54),
                   onPressed: onClear,
                 ),
             ],

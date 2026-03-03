@@ -1,13 +1,13 @@
 import 'dart:ui';
 
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../l10n/app_localizations.dart';
 import '../models/task_entity.dart';
 import '../services/config_service.dart';
 import '../utils/recurrence_utils.dart';
+import '../utils/task_schedule_codec.dart';
 
 class NotificationService {
   static const String channelKey = 'task_reminders';
@@ -19,55 +19,6 @@ class NotificationService {
   static Future<bool> areNotificationsEnabledByUser() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_prefsKeyNotifications) ?? false;
-  }
-
-  /// 从 reminderTime 解析出单次提醒的调度时间
-  /// 返回 null 表示无法解析
-  static DateTime? _parseReminderScheduledTime(
-    TaskEntity task,
-    DateTime occurrenceDateTime,
-    String rt,
-  ) {
-    if (rt.startsWith('offset:')) {
-      // 发生当天：提前 m 分钟
-      final min = int.tryParse(rt.substring(7)) ?? 5;
-      return occurrenceDateTime.subtract(Duration(minutes: min));
-    }
-    if (rt.startsWith('days_before:')) {
-      // 发生前 n 天在 h:mm 提醒
-      final rest = rt.substring(12);
-      final comma = rest.indexOf(',');
-      if (comma <= 0) return null;
-      final n = int.tryParse(rest.substring(0, comma).trim());
-      final timeStr = rest.substring(comma + 1).trim();
-      if (n == null || n < 1) return null;
-      try {
-        final t = DateFormat('h:mm a').parseStrict(timeStr);
-        final reminderDate = occurrenceDateTime.subtract(Duration(days: n));
-        return DateTime(
-          reminderDate.year,
-          reminderDate.month,
-          reminderDate.day,
-          t.hour,
-          t.minute,
-        );
-      } catch (_) {
-        return null;
-      }
-    }
-    if (rt.startsWith('custom:')) {
-      try {
-        return DateFormat('dd/MM/yy h:mm a').parse(rt.substring(7));
-      } catch (_) {
-        return null;
-      }
-    }
-    // 绝对时间
-    try {
-      return DateFormat('dd/MM/yy h:mm a').parse(rt);
-    } catch (_) {
-      return null;
-    }
   }
 
   /// 获取任务的发生时刻（用于提醒计算）
@@ -85,14 +36,16 @@ class NotificationService {
       final taskId = task.id ?? DateTime.now().millisecondsSinceEpoch ~/ 1000;
       await _cancelTaskNotifications(taskId, task.repeatRule);
 
-      final rt = task.reminderTime?.trim() ?? '';
-      final hasReminderConfig = rt.isNotEmpty;
-
-      // 无 reminderTime 时使用任务时间作为提醒
-      final effectiveRt = hasReminderConfig ? rt : 'offset:0';
-
-      final rule = (task.repeatRule ?? '').trim().toLowerCase();
-      final isRecurring = rule.isNotEmpty && rule != 'no repeat';
+      final baseOccurrence = RecurrenceUtils.getBaseOccurrenceDateTime(task);
+      final reminderRule = ReminderRule.fromStorage(
+        task.reminderTime,
+        occurrenceDateTime: baseOccurrence,
+      );
+      final repeat = RepeatSelection.fromStorage(
+        task.repeatRule,
+        baseDate: baseOccurrence,
+      );
+      final isRecurring = repeat.isRepeating;
 
       if (isRecurring) {
         // 重复任务：为每次发生调度提醒
@@ -109,7 +62,8 @@ class NotificationService {
           final occDt = _getOccurrenceDateTime(task, occDate);
           if (occDt == null) continue;
 
-          final scheduled = _parseReminderScheduledTime(task, occDt, effectiveRt);
+          final scheduled = (reminderRule ?? const ReminderRule.relative(0))
+              .scheduleAt(occDt);
           if (scheduled == null || scheduled.isBefore(now)) continue;
 
           final notifId = taskId * 1000 + i;
@@ -120,12 +74,8 @@ class NotificationService {
         final occDt = RecurrenceUtils.getBaseOccurrenceDateTime(task);
         if (occDt == null) return;
 
-        DateTime? scheduled;
-        if (hasReminderConfig) {
-          scheduled = _parseReminderScheduledTime(task, occDt, effectiveRt);
-        } else {
-          scheduled = occDt;
-        }
+        final scheduled =
+            (reminderRule ?? const ReminderRule.relative(0)).scheduleAt(occDt);
         if (scheduled == null || scheduled.isBefore(DateTime.now())) return;
 
         await _scheduleSingle(task, taskId, scheduled);
@@ -165,7 +115,8 @@ class NotificationService {
   }
 
   /// 取消某任务的所有通知（含重复任务的多次调度）
-  static Future<void> _cancelTaskNotifications(int taskId, [String? repeatRule]) async {
+  static Future<void> _cancelTaskNotifications(int taskId,
+      [String? repeatRule]) async {
     await AwesomeNotifications().cancel(taskId);
     for (var i = 0; i < _recurringScheduleDaysAhead; i++) {
       await AwesomeNotifications().cancel(taskId * 1000 + i);
@@ -228,7 +179,8 @@ class NotificationService {
   static Future<bool> requestPermissions() async {
     final isAllowed = await AwesomeNotifications().isNotificationAllowed();
     if (!isAllowed) {
-      return await AwesomeNotifications().requestPermissionToSendNotifications();
+      return await AwesomeNotifications()
+          .requestPermissionToSendNotifications();
     }
     return true;
   }

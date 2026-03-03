@@ -7,6 +7,7 @@ import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
 import 'package:doable_todo_list_app/utils/priority_utils.dart';
 import 'package:doable_todo_list_app/utils/recurrence_utils.dart';
+import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/screens/home_page.dart' show Task;
 import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
 
@@ -19,6 +20,7 @@ class CalendarPage extends StatefulWidget {
   });
 
   final int refreshTrigger;
+
   /// 父组件请求回到今天时调用（如底部定位按钮）
   final void Function(void Function() goToToday)? onGoToTodayRequested;
 
@@ -99,7 +101,8 @@ class _CalendarPageState extends State<CalendarPage> {
       final taskDate = _parseTaskDate(task.date!);
       if (taskDate == null) continue;
 
-      final taskDateOnly = DateTime(taskDate.year, taskDate.month, taskDate.day);
+      final taskDateOnly =
+          DateTime(taskDate.year, taskDate.month, taskDate.day);
 
       if (taskDateOnly.isBefore(today)) {
         _overdueTasks.add(task);
@@ -118,12 +121,16 @@ class _CalendarPageState extends State<CalendarPage> {
       if (task.date == null || task.date!.isEmpty) continue;
       final baseDate = _parseTaskDate(task.date!);
       if (baseDate == null) continue;
-      final rule = (task.repeatRule ?? '').trim().toLowerCase();
-      if (rule.isEmpty || rule == 'no repeat') continue;
+      final repeat = RepeatSelection.fromStorage(
+        task.repeatRule,
+        baseDate: baseDate,
+      );
+      if (!repeat.isRepeating) continue;
 
       for (int i = 1; i < 7; i++) {
         final d = today.add(Duration(days: i));
-        if (RecurrenceUtils.taskMatchesDate(task, d) && !(_groupedTasks[d] ?? []).contains(task)) {
+        if (RecurrenceUtils.taskMatchesDate(task, d) &&
+            !(_groupedTasks[d] ?? []).contains(task)) {
           _groupedTasks[d] ??= [];
           _groupedTasks[d]!.add(task);
           _datesWithTasks.add(_dateKey(d));
@@ -134,8 +141,12 @@ class _CalendarPageState extends State<CalendarPage> {
     // 为日历标记扩展：过去 60 天 + 未来 90 天，检查重复任务
     for (var task in _allTasks.where((t) => !t.completed)) {
       if (task.date == null || task.date!.isEmpty) continue;
-      final rule = (task.repeatRule ?? '').trim().toLowerCase();
-      if (rule.isEmpty || rule == 'no repeat') continue;
+      final baseDate = _parseTaskDate(task.date!);
+      final repeat = RepeatSelection.fromStorage(
+        task.repeatRule,
+        baseDate: baseDate,
+      );
+      if (!repeat.isRepeating) continue;
       for (int i = -60; i <= 90; i++) {
         final d = today.add(Duration(days: i));
         if (RecurrenceUtils.taskMatchesDate(task, d)) {
@@ -154,7 +165,8 @@ class _CalendarPageState extends State<CalendarPage> {
 
   List<TaskEntity> _sortTasksByPriority(List<TaskEntity> tasks) {
     final list = List<TaskEntity>.from(tasks);
-    list.sort((a, b) => PriorityUtils.sortOrder(a.priority).compareTo(PriorityUtils.sortOrder(b.priority)));
+    list.sort((a, b) => PriorityUtils.sortOrder(a.priority)
+        .compareTo(PriorityUtils.sortOrder(b.priority)));
     return list;
   }
 
@@ -175,7 +187,8 @@ class _CalendarPageState extends State<CalendarPage> {
     if (mounted && markingComplete) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.taskCompletedMessage(task.title)),
+          content: Text(
+              AppLocalizations.of(context)!.taskCompletedMessage(task.title)),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 2),
         ),
@@ -214,8 +227,8 @@ class _CalendarPageState extends State<CalendarPage> {
             children: [
               Text(
                 '${AppLocalizations.of(context)!.reschedule} ${_overdueTasks.length}',
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.bold),
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               ListTile(
@@ -226,8 +239,8 @@ class _CalendarPageState extends State<CalendarPage> {
               ListTile(
                 leading: const Icon(Icons.wb_sunny, color: Colors.orange),
                 title: Text(AppLocalizations.of(context)!.tomorrow),
-                onTap: () =>
-                    _rescheduleTasks(DateTime.now().add(const Duration(days: 1))),
+                onTap: () => _rescheduleTasks(
+                    DateTime.now().add(const Duration(days: 1))),
               ),
               ListTile(
                 leading: const Icon(Icons.weekend, color: Colors.green),
@@ -272,7 +285,8 @@ class _CalendarPageState extends State<CalendarPage> {
     final weekday = now.weekday;
     // 6=Sat, 7=Sun
     final daysUntilSat = (6 - weekday) % 7;
-    final saturday = now.add(Duration(days: daysUntilSat == 0 ? 7 : daysUntilSat));
+    final saturday =
+        now.add(Duration(days: daysUntilSat == 0 ? 7 : daysUntilSat));
     _rescheduleTasks(saturday);
   }
 
@@ -314,9 +328,9 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-    final monthYearTitle = DateFormat.yMMMM(
-            Localizations.localeOf(context).toString())
-        .format(_focusedDay);
+    final monthYearTitle =
+        DateFormat.yMMMM(Localizations.localeOf(context).toString())
+            .format(_focusedDay);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -347,7 +361,9 @@ class _CalendarPageState extends State<CalendarPage> {
                   ),
                   const SizedBox(width: 8),
                   Icon(
-                    _calendarExpanded ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                    _calendarExpanded
+                        ? Icons.arrow_drop_up
+                        : Icons.arrow_drop_down,
                     color: _calendarExpanded ? Colors.blue : Colors.grey,
                   ),
                 ],
@@ -359,14 +375,16 @@ class _CalendarPageState extends State<CalendarPage> {
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             height: _calendarExpanded ? 380 : 160,
-            padding: EdgeInsets.symmetric(horizontal: horizontalPadding(context)),
+            padding:
+                EdgeInsets.symmetric(horizontal: horizontalPadding(context)),
             child: TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
               focusedDay: _focusedDay,
               selectedDayPredicate: (day) => _isSameDay(_selectedDay, day),
-              calendarFormat:
-                  _calendarExpanded ? CalendarFormat.month : CalendarFormat.week,
+              calendarFormat: _calendarExpanded
+                  ? CalendarFormat.month
+                  : CalendarFormat.week,
               startingDayOfWeek: StartingDayOfWeek.monday,
               rowHeight: 52,
               availableGestures: AvailableGestures.horizontalSwipe,
@@ -424,7 +442,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   fontWeight: FontWeight.bold,
                 ),
                 defaultTextStyle: const TextStyle(fontSize: 16),
-                weekendTextStyle: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                weekendTextStyle:
+                    TextStyle(fontSize: 16, color: Colors.grey.shade700),
                 outsideTextStyle: TextStyle(color: Colors.grey.shade400),
               ),
               headerStyle: const HeaderStyle(
@@ -463,8 +482,8 @@ class _CalendarPageState extends State<CalendarPage> {
                           ],
                           ...(_groupedTasks.entries.toList()
                                 ..sort((a, b) => a.key.compareTo(b.key)))
-                              .map((entry) =>
-                                  _buildDateSection(entry.key, entry.value, loc)),
+                              .map((entry) => _buildDateSection(
+                                  entry.key, entry.value, loc)),
                           const SizedBox(height: 96),
                         ],
                       ),
@@ -498,8 +517,7 @@ class _CalendarPageState extends State<CalendarPage> {
     );
   }
 
-  Widget _buildSectionHeader(
-      String title, int count, AppLocalizations loc) {
+  Widget _buildSectionHeader(String title, int count, AppLocalizations loc) {
     return InkWell(
       onTap: () {
         setState(() => _overdueExpanded = !_overdueExpanded);
@@ -531,7 +549,9 @@ class _CalendarPageState extends State<CalendarPage> {
                   style: const TextStyle(color: Colors.blue)),
             ),
             Icon(
-              _overdueExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              _overdueExpanded
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down,
               color: Colors.grey,
             ),
           ],
@@ -567,9 +587,8 @@ class _CalendarPageState extends State<CalendarPage> {
     }
 
     final isZh = Localizations.localeOf(context).languageCode == 'zh';
-    final dateStr = isZh
-        ? '${date.month}月${date.day}日'
-        : '${date.month}/${date.day}';
+    final dateStr =
+        isZh ? '${date.month}月${date.day}日' : '${date.month}/${date.day}';
 
     return Column(
       key: key,
@@ -651,9 +670,8 @@ class _CalendarPageState extends State<CalendarPage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: task.completed
-                          ? Colors.green
-                          : Colors.grey.shade400,
+                      color:
+                          task.completed ? Colors.green : Colors.grey.shade400,
                       width: 2,
                     ),
                     color: task.completed ? Colors.green : Colors.transparent,

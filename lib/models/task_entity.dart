@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:intl/intl.dart';
+
 import 'action_item.dart';
 
 /// 优先级：红 > 黄 > 蓝 > 白
@@ -14,9 +16,9 @@ enum TaskPriority {
 /// - start_only: 有计划的任务（组会、学习计划等），可重复
 /// - end_only / both: 无重复，做一段时间就结束
 enum TimeKind {
-  startOnly,  // 仅有开始时间
-  endOnly,    // 仅有结束时间
-  both,       // 开始+结束都有
+  startOnly, // 仅有开始时间
+  endOnly, // 仅有结束时间
+  both, // 开始+结束都有
 }
 
 class TaskEntity {
@@ -50,12 +52,14 @@ class TaskEntity {
   String? endTime; // "18:00"
   String? endDate; // "26/11/24"
   bool hasNotification;
+
   /// 提醒时间：
   /// - offset:m 发生当天提前 m 分钟
   /// - days_before:n,h:mm 发生前 n 天在 h:mm 提醒
   /// - custom:dd/MM/yy h:mm a 自定义绝对时间
   /// - dd/MM/yy h:mm a 无任务时间时的绝对时间
   String? reminderTime;
+
   /// 是否同时在系统闹钟中添加提醒（仅 Android）
   bool useSystemAlarm;
   String? repeatRule; // e.g., "Weekly"
@@ -67,10 +71,40 @@ class TaskEntity {
   /// 动作列表，支持多个动作（如同时打电话+导航）。空或 null 表示无动作。
   List<ActionItem>? actions;
 
+  static final DateFormat _dateFmt = DateFormat('dd/MM/yy');
+  static final DateFormat _timeFmt = DateFormat('h:mm a');
+
   /// 兼容旧版单动作：返回第一个动作的 type，无动作时 null。
-  String? get actionType => actions?.isNotEmpty == true ? actions!.first.type : null;
-  String? get actionData => actions?.isNotEmpty == true ? actions!.first.data : null;
-  String? get actionTarget => actions?.isNotEmpty == true ? actions!.first.target : null;
+  String? get actionType =>
+      actions?.isNotEmpty == true ? actions!.first.type : null;
+  String? get actionData =>
+      actions?.isNotEmpty == true ? actions!.first.data : null;
+  String? get actionTarget =>
+      actions?.isNotEmpty == true ? actions!.first.target : null;
+
+  /// 统一后的开始时间（Todoist/Things 风格）：一个开始时间点 + 可选结束时间点。
+  DateTime? get startAt => _combineDateTime(date, time);
+
+  /// 可选结束时间，null 表示无区间，仅有一个时间点。
+  DateTime? get endAt => _combineDateTime(endDate, endTime);
+
+  bool get hasTimeRange => endAt != null;
+
+  static DateTime? _combineDateTime(String? dateStr, String? timeStr) {
+    if (dateStr == null ||
+        dateStr.isEmpty ||
+        timeStr == null ||
+        timeStr.isEmpty) {
+      return null;
+    }
+    try {
+      final d = _dateFmt.parseStrict(dateStr);
+      final t = _timeFmt.parseStrict(timeStr);
+      return DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    } catch (_) {
+      return null;
+    }
+  }
 
   static List<ActionItem> _parseActions(Map<String, dynamic> m) {
     final raw = m['actions'] as String?;
@@ -102,36 +136,50 @@ class TaskEntity {
   static TimeKind _parseTimeKind(String? v) {
     if (v == null || v.isEmpty) return TimeKind.startOnly;
     switch (v) {
-      case 'end_only': return TimeKind.endOnly;
-      case 'both': return TimeKind.both;
-      default: return TimeKind.startOnly;
+      case 'end_only':
+        return TimeKind.endOnly;
+      case 'both':
+        return TimeKind.both;
+      default:
+        return TimeKind.startOnly;
     }
   }
 
   static String _timeKindToStr(TimeKind k) {
     switch (k) {
-      case TimeKind.endOnly: return 'end_only';
-      case TimeKind.both: return 'both';
-      default: return 'start_only';
+      case TimeKind.endOnly:
+        return 'end_only';
+      case TimeKind.both:
+        return 'both';
+      default:
+        return 'start_only';
     }
   }
 
   static TaskPriority _parsePriority(String? v) {
     if (v == null || v.isEmpty) return TaskPriority.white;
     switch (v) {
-      case 'red': return TaskPriority.red;
-      case 'yellow': return TaskPriority.yellow;
-      case 'blue': return TaskPriority.blue;
-      default: return TaskPriority.white;
+      case 'red':
+        return TaskPriority.red;
+      case 'yellow':
+        return TaskPriority.yellow;
+      case 'blue':
+        return TaskPriority.blue;
+      default:
+        return TaskPriority.white;
     }
   }
 
   static String _priorityToStr(TaskPriority p) {
     switch (p) {
-      case TaskPriority.red: return 'red';
-      case TaskPriority.yellow: return 'yellow';
-      case TaskPriority.blue: return 'blue';
-      default: return 'white';
+      case TaskPriority.red:
+        return 'red';
+      case TaskPriority.yellow:
+        return 'yellow';
+      case TaskPriority.blue:
+        return 'blue';
+      default:
+        return 'white';
     }
   }
 
@@ -160,9 +208,8 @@ class TaskEntity {
 
   Map<String, dynamic> toMap() {
     final acts = actions ?? [];
-    final actionsJson = acts.isEmpty
-        ? null
-        : jsonEncode(acts.map((a) => a.toJson()).toList());
+    final actionsJson =
+        acts.isEmpty ? null : jsonEncode(acts.map((a) => a.toJson()).toList());
     return {
       'id': id,
       'title': title,
