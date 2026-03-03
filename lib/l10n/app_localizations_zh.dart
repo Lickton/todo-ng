@@ -203,21 +203,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get sundayShort => '日';
 
   @override
-  String get priority => '优先级';
-
-  @override
-  String get priorityRed => '红';
-
-  @override
-  String get priorityYellow => '黄';
-
-  @override
-  String get priorityBlue => '蓝';
-
-  @override
-  String get priorityWhite => '白';
-
-  @override
   String get reminders => '提醒';
 
   @override
@@ -636,9 +621,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get sortBy => '排序方式';
-
-  @override
-  String get sortByPriority => '优先级';
 
   @override
   String get sortByStartTime => '开始时间';

@@ -13,7 +13,6 @@ import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
 import 'package:doable_todo_list_app/services/system_alarm_service.dart';
-import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -37,7 +36,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
   late Task _task;
 
   // UI state
-  TaskPriority _priority = TaskPriority.white;
   bool _reminder = false;
   String? _reminderTime;
   bool _useSystemAlarm = false;
@@ -61,9 +59,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
   /// 保存前触发，将描述区内联未暂存内容同步到 controller
   final _descFlushRequested = ValueNotifier<int>(0);
 
-  // Style constants
-  static const Color blueColor = Color(0xFF2563EB); // button/active color
-
   // Convenience paddings
   EdgeInsets get _screenHPad {
     final w = MediaQuery.of(context).size.width;
@@ -84,7 +79,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
       _descCtrl.text = _task.description ?? '';
 
       // Prefill toggles
-      _priority = _task.priority;
       _reminder = _task.hasNotification;
       _useSystemAlarm = _task.useSystemAlarm;
       _timeKind = _task.timeKind;
@@ -232,7 +226,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
       id: _task.id,
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
-      priority: _priority,
       time: timeStr,
       date: dateStr,
       timeKind: _timeKind,
@@ -327,23 +320,13 @@ class _EditTaskPageState extends State<EditTaskPage> {
                 hint: AppLocalizations.of(context)!.title,
                 textInputAction: TextInputAction.next,
               ),
-              SizedBox(height: spacing),
-              _FieldLabel(text: AppLocalizations.of(context)!.priority),
-              SizedBox(height: spacing),
-              PriorityPickerField(
-                value: _priority,
-                onChanged: (p) => setState(() => _priority = p),
-              ),
               SizedBox(height: bigSpacing),
               _FieldLabel(text: AppLocalizations.of(context)!.description),
               SizedBox(height: spacing),
-              DescriptionMarkdownField(
+              DescriptionField(
                 controller: _descCtrl,
                 hintText: AppLocalizations.of(context)!.description,
                 onChanged: () => setState(() {}),
-                onFullscreenChanged: (v) =>
-                    setState(() => _isFullscreenMarkdown = v),
-                flushRequested: _descFlushRequested,
               ),
               SizedBox(height: bigSpacing),
 
@@ -429,37 +412,6 @@ class _EditTaskPageState extends State<EditTaskPage> {
           ),
         ),
       ),
-      bottomNavigationBar: _isFullscreenMarkdown
-          ? null
-          : Padding(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                0,
-                16,
-                32 + MediaQuery.of(context).viewInsets.bottom,
-              ),
-              child: SafeArea(
-                top: false,
-                child: SizedBox(
-                  height: 56,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B82F6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    onPressed: _save,
-                    child: Text(AppLocalizations.of(context)!.save),
-                  ),
-                ),
-              ),
-            ),
     );
   }
 }

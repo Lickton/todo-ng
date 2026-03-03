@@ -29,7 +29,6 @@ class DatabaseService {
             use_system_alarm INTEGER NOT NULL DEFAULT 0,
             repeat_rule TEXT,
             completed INTEGER NOT NULL DEFAULT 0,
-            priority TEXT DEFAULT 'white',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT,
             action_type TEXT,
@@ -55,9 +54,6 @@ class DatabaseService {
           await db.execute('ALTER TABLE tasks ADD COLUMN time_kind TEXT');
           await db.execute('ALTER TABLE tasks ADD COLUMN end_time TEXT');
           await db.execute('ALTER TABLE tasks ADD COLUMN end_date TEXT');
-        }
-        if (oldV < 7) {
-          await db.execute("ALTER TABLE tasks ADD COLUMN priority TEXT DEFAULT 'white'");
         }
         if (oldV < 3) {
           await db.execute('ALTER TABLE tasks ADD COLUMN actions TEXT');

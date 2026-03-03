@@ -7,7 +7,6 @@ import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/action_item.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
-import 'package:doable_todo_list_app/utils/priority_utils.dart';
 import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/action_button.dart';
 import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
@@ -28,7 +27,6 @@ class Task {
     this.useSystemAlarm = false,
     this.repeatRule,
     this.completed = false,
-    this.priority = TaskPriority.white,
     this.actions,
   });
 
@@ -45,7 +43,6 @@ class Task {
   bool useSystemAlarm;
   String? repeatRule;
   bool completed;
-  TaskPriority priority;
   List<ActionItem>? actions;
 }
 
@@ -69,7 +66,6 @@ class _HomePageState extends State<HomePage> {
   bool? _fltCompleted;
   String? _fltRepeat; // "Daily"|"Weekly"|"Monthly"|null=any
   bool? _fltReminder; // true=hasNotification, false=no, null=any
-  TaskPriority? _fltPriority; // null=any
 
   String _fmtDate(DateTime d) => DateFormat('dd/MM/yy').format(d); // [web:146]
   String _fmtTime(TimeOfDay t) => DateFormat('h:mm a')
@@ -104,15 +100,9 @@ class _HomePageState extends State<HomePage> {
     if (_fltReminder != null) {
       it = it.where((t) => t.hasNotification == _fltReminder);
     }
-    if (_fltPriority != null) {
-      it = it.where((t) => t.priority == _fltPriority);
-    }
 
     final list = it.toList();
     list.sort((a, b) {
-      final pa = PriorityUtils.sortOrder(a.priority);
-      final pb = PriorityUtils.sortOrder(b.priority);
-      if (pa != pb) return pa.compareTo(pb);
       if (a.completed != b.completed) return a.completed ? 1 : -1;
       return 0;
     });
@@ -126,7 +116,6 @@ class _HomePageState extends State<HomePage> {
       _fltCompleted = null;
       _fltRepeat = null;
       _fltReminder = null;
-      _fltPriority = null;
     });
   }
 
@@ -166,7 +155,6 @@ class _HomePageState extends State<HomePage> {
               useSystemAlarm: e.useSystemAlarm,
               repeatRule: e.repeatRule,
               completed: e.completed,
-              priority: e.priority,
               actions: e.actions,
             ))
         .toList();
@@ -238,50 +226,6 @@ class _HomePageState extends State<HomePage> {
                 helpText: AppLocalizations.of(context)!.selectTime,
               );
               if (picked != null) setSheetState(() => _fltTime = picked);
-            }
-
-            Widget priorityChip(TaskPriority p, TaskPriority? current,
-                void Function(void Function()) setSheetState) {
-              final selected = current == p;
-              final color = PriorityUtils.colorOf(p);
-              final label = p == TaskPriority.red
-                  ? AppLocalizations.of(context)!.priorityRed
-                  : p == TaskPriority.yellow
-                      ? AppLocalizations.of(context)!.priorityYellow
-                      : p == TaskPriority.blue
-                          ? AppLocalizations.of(context)!.priorityBlue
-                          : AppLocalizations.of(context)!.priorityWhite;
-              return Material(
-                color: selected ? color : Colors.white,
-                shape: StadiumBorder(
-                    side: BorderSide(color: color, width: selected ? 0 : 2)),
-                child: InkWell(
-                  onTap: () => setSheetState(() => _fltPriority = p),
-                  customBorder: const StadiumBorder(),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: selected ? Colors.white : color,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(label,
-                            style: TextStyle(
-                                color: selected ? Colors.white : Colors.black,
-                                fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                  ),
-                ),
-              );
             }
 
             Widget chip(String label, bool selected, VoidCallback onTap) {
@@ -441,31 +385,6 @@ class _HomePageState extends State<HomePage> {
                               () => setSheetState(() => _fltReminder = null)),
                         ],
                       ),
-                      const SizedBox(height: 20),
-                      Text(AppLocalizations.of(context)!.priority,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black)),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          priorityChip(
-                              TaskPriority.red, _fltPriority, setSheetState),
-                          priorityChip(
-                              TaskPriority.yellow, _fltPriority, setSheetState),
-                          priorityChip(
-                              TaskPriority.blue, _fltPriority, setSheetState),
-                          priorityChip(
-                              TaskPriority.white, _fltPriority, setSheetState),
-                          chip(
-                              AppLocalizations.of(context)!.any,
-                              _fltPriority == null,
-                              () => setSheetState(() => _fltPriority = null)),
-                        ],
-                      ),
                       const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
@@ -499,7 +418,6 @@ class _HomePageState extends State<HomePage> {
                               _fltCompleted = null;
                               _fltRepeat = null;
                               _fltReminder = null;
-                              _fltPriority = null;
                             });
                           },
                           child: Text(
@@ -629,8 +547,8 @@ class _FilterChipButton extends StatelessWidget {
   const _FilterChipButton({
     required this.label,
     required this.onTap,
+    this.minWidth = 48,
     this.height = 36,
-    this.minWidth = 96,
   });
 
   final String label;
@@ -641,7 +559,7 @@ class _FilterChipButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48, minWidth: 48),
+      constraints: BoxConstraints(minHeight: 48, minWidth: minWidth),
       child: Material(
         color: Colors.white,
         shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
@@ -684,7 +602,7 @@ class _FilterChipButton extends StatelessWidget {
 
 /// 任务列表项，可在 HomePage 与 CompletedTasksPage 中复用
 class TaskTile extends StatelessWidget {
-  const TaskTile({
+  const TaskTile({super.key, 
     required this.task,
     required this.onToggle,
   });
@@ -744,15 +662,6 @@ class TaskTile extends StatelessWidget {
                     ),
                   ),
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            width: 4,
-            height: 40,
-            decoration: BoxDecoration(
-              color: PriorityUtils.colorOf(task.priority),
-              borderRadius: BorderRadius.circular(2),
             ),
           ),
         ],

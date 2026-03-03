@@ -13,8 +13,6 @@ import 'package:doable_todo_list_app/utils/meeting_utils.dart';
 import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/action_selector.dart';
 import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
-import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
-import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -30,12 +28,12 @@ class TaskDetailSheet extends StatefulWidget {
 }
 
 class _TaskDetailSheetState extends State<TaskDetailSheet> {
+  // 标题与描述的编辑状态，保存时统一从 controller 读取。
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
 
   late Task _task;
 
-  TaskPriority _priority = TaskPriority.white;
   bool _reminder = false;
   String? _reminderTime;
   bool _useSystemAlarm = false;
@@ -52,12 +50,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   List<ActionItem> _actions = [];
   bool _hasIncompleteAction = false;
 
-  /// 全屏 Markdown 编辑打开时隐藏主保存按钮
-  bool _isFullscreenMarkdown = false;
-
-  /// 保存前触发，将描述区内联未暂存内容同步到 controller
-  final _descFlushRequested = ValueNotifier<int>(0);
-
   static const Color _blueColor = Color(0xFF2563EB);
 
   @override
@@ -68,18 +60,11 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     _titleCtrl.text = _task.title;
     final desc = _task.description ?? '';
     _descCtrl.text = desc;
-    if (kDebugMode && desc.isNotEmpty) {
-      final hasTrailingSpaces = desc.contains('  \n') || desc.endsWith('  ');
-      debugPrint('[TaskDetailSheet] 加载 description 长度=${desc.length}, '
-          '含行尾双空格=$hasTrailingSpaces, '
-          'repr=${desc.replaceAll('\n', '\\n').replaceAll(' ', '·')}');
-    }
-
-    _priority = _task.priority;
     _reminder = _task.hasNotification;
     _useSystemAlarm = _task.useSystemAlarm;
     _timeKind = _task.timeKind;
 
+    // 将存储层字符串日期/时间还原为 UI 可编辑的 DateTime/TimeOfDay。
     _selectedDate = _parseDateOrNull(_task.date) ?? DateTime.now();
     _selectedTime =
         _parseTimeOrNull(_task.time) ?? const TimeOfDay(hour: 0, minute: 0);
@@ -102,7 +87,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
 
   @override
   void dispose() {
-    _descFlushRequested.dispose();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     super.dispose();
@@ -134,6 +118,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     }
   }
 
+  // 把存储层 repeatRule 拆解回 UI 选择状态（规则 + 周/月/年选择项）。
   void _hydrateAllFromRule(String? rule) {
     final baseDate = _parseDateOrNull(_task.date);
     final parsed = RepeatSelection.fromStorage(rule, baseDate: baseDate);
@@ -147,7 +132,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
   }
 
   Future<void> _save() async {
-    _descFlushRequested.value++;
     final title = _titleCtrl.text.trim();
     if (title.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -157,6 +141,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
     }
 
     if (_hasIncompleteAction) {
+      // 行动项未填完整时阻止保存；会议类型使用更严格的结构校验。
       final hasMeetingIncomplete = _actions.any((a) =>
           a.type == 'meeting' &&
           (a.data == null ||
@@ -188,6 +173,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       _selectedTime.hour,
       _selectedTime.minute,
     );
+    // 仅单时间点任务支持重复；区间任务强制为不重复。
     final repeatSelection = _timeKind == TimeKind.startOnly
         ? RepeatSelection.fromUi(
             rule: _repeatRule,
@@ -204,12 +190,12 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
           )?.toStorage()
         : null;
 
+    // 过滤掉未完成输入的 action，避免写入空 type/data。
     final validActions = _actions
         .where((a) => a.type.isNotEmpty && (a.data?.trim().isNotEmpty == true))
         .toList();
     final desc = _descCtrl.text.trim().isEmpty ? null : _descCtrl.text;
     if (kDebugMode && desc != null) {
-      // 调试：验证行尾两个空格是否被保留（Markdown 换行）
       final hasTrailingSpaces = desc.contains('  \n') || desc.endsWith('  ');
       debugPrint('[TaskDetailSheet] 保存 description 长度=${desc.length}, '
           '含行尾双空格=$hasTrailingSpaces, '
@@ -219,7 +205,6 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
       id: _task.id,
       title: title,
       description: desc,
-      priority: _priority,
       time: timeStr,
       date: dateStr,
       timeKind: _timeKind,
@@ -242,6 +227,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
         _reminder &&
         _useSystemAlarm &&
         SystemAlarmService.instance.isSupported) {
+      // 仅在用户开启系统闹钟且平台支持时创建系统级闹钟。
       final hm = ReminderSettingField.getReminderHourMinute(
         reminderTime: _reminderTime,
         taskDate: _selectedDate,
@@ -292,7 +278,7 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
                   child: _buildContent(),
                 ),
               ),
-              if (!_isFullscreenMarkdown) _buildSaveButton(),
+              _buildSaveButton(),
             ],
           ),
         );
@@ -370,23 +356,15 @@ class _TaskDetailSheetState extends State<TaskDetailSheet> {
             hint: AppLocalizations.of(context)!.title,
             textInputAction: TextInputAction.next,
           ),
-          const SizedBox(height: spacing),
-          _FieldLabel(text: AppLocalizations.of(context)!.priority),
-          const SizedBox(height: spacing),
-          PriorityPickerField(
-            value: _priority,
-            onChanged: (p) => setState(() => _priority = p),
-          ),
           const SizedBox(height: bigSpacing),
           _FieldLabel(text: AppLocalizations.of(context)!.description),
           const SizedBox(height: spacing),
-          DescriptionMarkdownField(
+          // 描述区为纯文本多行输入，不做 Markdown 解析/预览。
+          _InputField(
             controller: _descCtrl,
-            hintText: AppLocalizations.of(context)!.description,
-            onChanged: () => setState(() {}),
-            onFullscreenChanged: (v) =>
-                setState(() => _isFullscreenMarkdown = v),
-            flushRequested: _descFlushRequested,
+            hint: AppLocalizations.of(context)!.description,
+            maxLines: 6,
+            textInputAction: TextInputAction.newline,
           ),
           const SizedBox(height: bigSpacing),
           _FieldLabel(text: AppLocalizations.of(context)!.dateAndTime),

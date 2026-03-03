@@ -4,14 +4,6 @@ import 'package:intl/intl.dart';
 
 import 'action_item.dart';
 
-/// 优先级：红 > 黄 > 蓝 > 白
-enum TaskPriority {
-  red,
-  yellow,
-  blue,
-  white,
-}
-
 /// 时间类型：仅开始、仅结束、两者都有
 /// - start_only: 有计划的任务（组会、学习计划等），可重复
 /// - end_only / both: 无重复，做一段时间就结束
@@ -36,7 +28,6 @@ class TaskEntity {
     this.useSystemAlarm = false,
     this.repeatRule,
     this.completed = false,
-    this.priority = TaskPriority.white,
     this.createdAt,
     this.updatedAt,
     this.actions,
@@ -64,7 +55,6 @@ class TaskEntity {
   bool useSystemAlarm;
   String? repeatRule; // e.g., "Weekly"
   bool completed;
-  TaskPriority priority;
   String? createdAt;
   String? updatedAt;
 
@@ -156,33 +146,6 @@ class TaskEntity {
     }
   }
 
-  static TaskPriority _parsePriority(String? v) {
-    if (v == null || v.isEmpty) return TaskPriority.white;
-    switch (v) {
-      case 'red':
-        return TaskPriority.red;
-      case 'yellow':
-        return TaskPriority.yellow;
-      case 'blue':
-        return TaskPriority.blue;
-      default:
-        return TaskPriority.white;
-    }
-  }
-
-  static String _priorityToStr(TaskPriority p) {
-    switch (p) {
-      case TaskPriority.red:
-        return 'red';
-      case TaskPriority.yellow:
-        return 'yellow';
-      case TaskPriority.blue:
-        return 'blue';
-      default:
-        return 'white';
-    }
-  }
-
   factory TaskEntity.fromMap(Map<String, dynamic> m) {
     final acts = _parseActions(m);
     return TaskEntity(
@@ -199,7 +162,6 @@ class TaskEntity {
       useSystemAlarm: (m['use_system_alarm'] as int? ?? 0) == 1,
       repeatRule: m['repeat_rule'] as String?,
       completed: (m['completed'] as int? ?? 0) == 1,
-      priority: _parsePriority(m['priority'] as String?),
       createdAt: m['created_at'] as String?,
       updatedAt: m['updated_at'] as String?,
       actions: acts.isEmpty ? null : acts,
@@ -224,7 +186,6 @@ class TaskEntity {
       'use_system_alarm': useSystemAlarm ? 1 : 0,
       'repeat_rule': repeatRule,
       'completed': completed ? 1 : 0,
-      'priority': _priorityToStr(priority),
       'created_at': createdAt,
       'updated_at': updatedAt,
       'actions': actionsJson,
@@ -245,7 +206,6 @@ class TaskEntity {
     bool? useSystemAlarm,
     String? repeatRule,
     bool? completed,
-    TaskPriority? priority,
     String? createdAt,
     String? updatedAt,
     List<ActionItem>? actions,
@@ -264,7 +224,6 @@ class TaskEntity {
       useSystemAlarm: useSystemAlarm ?? this.useSystemAlarm,
       repeatRule: repeatRule ?? this.repeatRule,
       completed: completed ?? this.completed,
-      priority: priority ?? this.priority,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       actions: actions ?? this.actions,

@@ -5,7 +5,6 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
-import 'package:doable_todo_list_app/utils/priority_utils.dart';
 import 'package:doable_todo_list_app/utils/recurrence_utils.dart';
 import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/screens/home_page.dart' show Task;
@@ -155,18 +154,21 @@ class _CalendarPageState extends State<CalendarPage> {
       }
     }
 
-    _overdueTasks.sort((a, b) {
-      final pa = PriorityUtils.sortOrder(a.priority);
-      final pb = PriorityUtils.sortOrder(b.priority);
-      if (pa != pb) return pa.compareTo(pb);
-      return _parseTaskDate(a.date!)!.compareTo(_parseTaskDate(b.date!)!);
-    });
+    _overdueTasks.sort(
+      (a, b) => _parseTaskDate(a.date!)!.compareTo(_parseTaskDate(b.date!)!),
+    );
   }
 
-  List<TaskEntity> _sortTasksByPriority(List<TaskEntity> tasks) {
+  List<TaskEntity> _sortTasksByDate(List<TaskEntity> tasks) {
     final list = List<TaskEntity>.from(tasks);
-    list.sort((a, b) => PriorityUtils.sortOrder(a.priority)
-        .compareTo(PriorityUtils.sortOrder(b.priority)));
+    list.sort((a, b) {
+      final ad = _parseTaskDate(a.date ?? '');
+      final bd = _parseTaskDate(b.date ?? '');
+      if (ad == null && bd == null) return 0;
+      if (ad == null) return 1;
+      if (bd == null) return -1;
+      return ad.compareTo(bd);
+    });
     return list;
   }
 
@@ -615,7 +617,7 @@ class _CalendarPageState extends State<CalendarPage> {
             ),
           )
         else
-          ..._sortTasksByPriority(tasks).map((t) => _buildTaskCard(t)),
+          ..._sortTasksByDate(tasks).map((t) => _buildTaskCard(t)),
         const SizedBox(height: 24),
       ],
     );
@@ -640,7 +642,6 @@ class _CalendarPageState extends State<CalendarPage> {
             useSystemAlarm: task.useSystemAlarm,
             repeatRule: task.repeatRule,
             completed: task.completed,
-            priority: task.priority,
             actions: task.actions,
           );
           final result = await showModalBottomSheet<bool>(
@@ -690,15 +691,6 @@ class _CalendarPageState extends State<CalendarPage> {
                     decoration:
                         task.completed ? TextDecoration.lineThrough : null,
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                width: 4,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: PriorityUtils.colorOf(task.priority),
-                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ],

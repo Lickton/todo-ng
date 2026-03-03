@@ -208,21 +208,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sundayShort => 'Sun';
 
   @override
-  String get priority => 'Priority';
-
-  @override
-  String get priorityRed => 'Red';
-
-  @override
-  String get priorityYellow => 'Yellow';
-
-  @override
-  String get priorityBlue => 'Blue';
-
-  @override
-  String get priorityWhite => 'White';
-
-  @override
   String get reminders => 'Reminders';
 
   @override
@@ -644,9 +629,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sortBy => 'Sort by';
-
-  @override
-  String get sortByPriority => 'Priority';
 
   @override
   String get sortByStartTime => 'Start time';

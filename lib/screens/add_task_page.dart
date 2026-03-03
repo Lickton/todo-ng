@@ -14,7 +14,6 @@ import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/utils/task_schedule_codec.dart';
 import 'package:doable_todo_list_app/widgets/date_time_picker_section.dart';
 import 'package:doable_todo_list_app/widgets/description_markdown_field.dart';
-import 'package:doable_todo_list_app/widgets/priority_picker_field.dart';
 import 'package:doable_todo_list_app/widgets/reminder_setting_field.dart';
 import 'package:doable_todo_list_app/widgets/repeat_picker_field.dart';
 
@@ -39,8 +38,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
   TimeOfDay _selectedTime = const TimeOfDay(hour: 0, minute: 0);
   DateTime? _selectedEndDate;
   TimeOfDay? _selectedEndTime;
-
-  TaskPriority _priority = TaskPriority.white;
 
   // Repeat selections
   String? _repeatRule;
@@ -141,7 +138,6 @@ class _AddTaskPageState extends State<AddTaskPage> {
     final entity = TaskEntity(
       title: title,
       description: _descCtrl.text.trim().isEmpty ? null : _descCtrl.text,
-      priority: _priority,
       time: timeStr,
       date: dateStr,
       timeKind: _timeKind,
@@ -241,22 +237,10 @@ class _AddTaskPageState extends State<AddTaskPage> {
               SizedBox(height: spacing),
               _FieldLabel(text: AppLocalizations.of(context)!.description),
               SizedBox(height: spacing),
-              DescriptionMarkdownField(
+              DescriptionField(
                 controller: _descCtrl,
                 hintText: AppLocalizations.of(context)!.description,
                 onChanged: () => setState(() {}),
-                onFullscreenChanged: (v) =>
-                    setState(() => _isFullscreenMarkdown = v),
-                flushRequested: _descFlushRequested,
-              ),
-              SizedBox(height: bigSpacing),
-
-              // 优先级
-              _FieldLabel(text: AppLocalizations.of(context)!.priority),
-              SizedBox(height: spacing),
-              PriorityPickerField(
-                value: _priority,
-                onChanged: (p) => setState(() => _priority = p),
               ),
               SizedBox(height: bigSpacing),
 

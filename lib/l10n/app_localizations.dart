@@ -470,36 +470,6 @@ abstract class AppLocalizations {
   /// **'Sun'**
   String get sundayShort;
 
-  /// No description provided for @priority.
-  ///
-  /// In en, this message translates to:
-  /// **'Priority'**
-  String get priority;
-
-  /// No description provided for @priorityRed.
-  ///
-  /// In en, this message translates to:
-  /// **'Red'**
-  String get priorityRed;
-
-  /// No description provided for @priorityYellow.
-  ///
-  /// In en, this message translates to:
-  /// **'Yellow'**
-  String get priorityYellow;
-
-  /// No description provided for @priorityBlue.
-  ///
-  /// In en, this message translates to:
-  /// **'Blue'**
-  String get priorityBlue;
-
-  /// No description provided for @priorityWhite.
-  ///
-  /// In en, this message translates to:
-  /// **'White'**
-  String get priorityWhite;
-
   /// No description provided for @reminders.
   ///
   /// In en, this message translates to:
@@ -1297,12 +1267,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sort by'**
   String get sortBy;
-
-  /// No description provided for @sortByPriority.
-  ///
-  /// In en, this message translates to:
-  /// **'Priority'**
-  String get sortByPriority;
 
   /// No description provided for @sortByStartTime.
   ///

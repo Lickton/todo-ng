@@ -52,7 +52,6 @@
 - `lib/widgets/date_time_picker_section.dart`: 时间/日期与时间类型选择。
 - `lib/widgets/repeat_picker_field.dart`: 重复规则选择（天/周/月/年）。
 - `lib/widgets/reminder_setting_field.dart`: 提醒策略与系统闹钟开关。
-- `lib/widgets/priority_picker_field.dart`: 任务优先级选择。
 - `lib/widgets/action_selector.dart`: 动作配置（多动作）。
 - `lib/widgets/action_button.dart`: 动作执行按钮。
 - `lib/widgets/description_markdown_field.dart`: 描述区 Markdown 编辑。
@@ -65,7 +64,6 @@
 - `lib/utils/app_launcher.dart`: URL Scheme 打开与降级策略。
 - `lib/utils/meeting_utils.dart`: 会议链接与会议号解析/校验。
 - `lib/utils/url_schemes.dart`: 各动作对应 scheme 常量。
-- `lib/utils/priority_utils.dart`: 优先级到颜色/文案映射。
 
 ### 3.9 l10n（国际化）
 - `lib/l10n/app_en.arb`、`lib/l10n/app_zh.arb`: 文案资源。
@@ -80,7 +78,7 @@
 ## 5. 数据库速览
 - DB 文件名: `doable.db`
 - 表: `tasks`
-- 关键字段: `title`, `description`, `date`, `time`, `time_kind`, `end_date`, `end_time`, `has_notification`, `reminder_time`, `repeat_rule`, `priority`, `actions`, `completed`。
+- 关键字段: `title`, `description`, `date`, `time`, `time_kind`, `end_date`, `end_time`, `has_notification`, `reminder_time`, `repeat_rule`, `actions`, `completed`。
 - 迁移逻辑: 见 `lib/data/database_service.dart` 的 `onUpgrade`。
 
 ## 6. 主要依赖（摘录）
@@ -96,6 +94,8 @@ flutter pub get
 flutter run
 flutter analyze
 flutter test
+flutter emulators
+flutter emulators --launch Medium_Phone_API_35
 ```
 
 ## 8. 建议阅读顺序

@@ -5,14 +5,12 @@ import 'package:intl/intl.dart';
 import 'package:doable_todo_list_app/l10n/app_localizations.dart';
 import 'package:doable_todo_list_app/models/task_entity.dart';
 import 'package:doable_todo_list_app/repositories/task_repository.dart';
-import 'package:doable_todo_list_app/utils/priority_utils.dart';
 import 'package:doable_todo_list_app/widgets/task_detail_sheet.dart';
 
 import 'home_page.dart' show Task, TaskTile;
 
 /// 排序方式
 enum CompletedSortBy {
-  priority,
   startTime,
   endTime,
   duration,
@@ -29,7 +27,7 @@ class CompletedTasksPage extends StatefulWidget {
 
 class _CompletedTasksPageState extends State<CompletedTasksPage> {
   final List<Task> _tasks = [];
-  CompletedSortBy _sortBy = CompletedSortBy.priority;
+  CompletedSortBy _sortBy = CompletedSortBy.startTime;
   bool _ascending = true;
   bool _isSelectionMode = false;
   final Set<int> _selectedIds = {};
@@ -88,10 +86,6 @@ class _CompletedTasksPageState extends State<CompletedTasksPage> {
 
     list.sort((a, b) {
       switch (_sortBy) {
-        case CompletedSortBy.priority:
-          final pa = PriorityUtils.sortOrder(a.priority);
-          final pb = PriorityUtils.sortOrder(b.priority);
-          return (pa - pb) * asc;
         case CompletedSortBy.startTime:
           final sa = _startDateTime(a);
           final sb = _startDateTime(b);
@@ -150,7 +144,6 @@ class _CompletedTasksPageState extends State<CompletedTasksPage> {
               useSystemAlarm: e.useSystemAlarm,
               repeatRule: e.repeatRule,
               completed: e.completed,
-              priority: e.priority,
               actions: e.actions,
             ))
         .toList();
@@ -246,14 +239,6 @@ class _CompletedTasksPageState extends State<CompletedTasksPage> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                _SortOption(
-                  label: l10n.sortByPriority,
-                  selected: _sortBy == CompletedSortBy.priority,
-                  onTap: () {
-                    setState(() => _sortBy = CompletedSortBy.priority);
-                    Navigator.pop(context);
-                  },
-                ),
                 _SortOption(
                   label: l10n.sortByStartTime,
                   selected: _sortBy == CompletedSortBy.startTime,
@@ -509,8 +494,6 @@ class _CompletedTasksPageState extends State<CompletedTasksPage> {
 
   String _sortLabel(AppLocalizations l10n) {
     switch (_sortBy) {
-      case CompletedSortBy.priority:
-        return l10n.sortByPriority;
       case CompletedSortBy.startTime:
         return l10n.sortByStartTime;
       case CompletedSortBy.endTime:
