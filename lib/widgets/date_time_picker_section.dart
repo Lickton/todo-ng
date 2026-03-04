@@ -87,29 +87,15 @@ class DateTimeSectionState {
     BuildContext? context,
     AppLocalizations? l10n,
   }) {
-    var nextDateEnabled = dateEnabled;
-    var nextTimeEnabled = timeEnabled;
+    // 统一出口：日期与重复互斥，但允许二者都关闭。
     var nextRepeatEnabled = repeatEnabled;
-
-    // 约束1：不允许“仅时间”。
-    // 当时间开启且日期、重复都关闭时，才视为“仅时间”非法态。
-    if (nextTimeEnabled && !nextDateEnabled && !nextRepeatEnabled) {
-      nextDateEnabled = true;
-      if (context != null && l10n != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.timeOnlyNotAllowed)),
-        );
-      }
-    }
-
-    // 约束2：重复与日期互斥，二者不能同时开启。
-    if (nextRepeatEnabled && nextDateEnabled) {
+    if (dateEnabled && repeatEnabled) {
       nextRepeatEnabled = false;
     }
 
     return DateTimeSectionState(
-      dateEnabled: nextDateEnabled,
-      timeEnabled: nextTimeEnabled,
+      dateEnabled: dateEnabled,
+      timeEnabled: timeEnabled,
       repeatEnabled: nextRepeatEnabled,
       date: date,
       time: time,
@@ -177,8 +163,9 @@ class DateTimePickerSection extends StatelessWidget {
           icon: Icons.calendar_today,
           label: _dateLabel(context),
           value: state.dateEnabled,
-          onChanged: (v) =>
-              _emit(context, l10n, state.copyWith(dateEnabled: v)),
+          onChanged: (v) {
+            _emit(context, l10n, state.copyWith(dateEnabled: v, repeatEnabled: v ? false : state.repeatEnabled));
+          },
         ),
         if (state.dateEnabled) ...[
           const SizedBox(height: 12),
@@ -233,15 +220,7 @@ class DateTimePickerSection extends StatelessWidget {
           label: l10n.time,
           value: state.timeEnabled,
           onChanged: (v) {
-            if (v) {
-              _emit(
-                context,
-                l10n,
-                state.copyWith(timeEnabled: true),
-              );
-            } else {
-              _emit(context, l10n, state.copyWith(timeEnabled: false));
-            }
+            _emit(context, l10n, state.copyWith(timeEnabled: v));
           },
         ),
         if (state.timeEnabled) ...[
@@ -262,22 +241,13 @@ class DateTimePickerSection extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
-        // 3) 重复开关 + 重复细项（与日期互斥）
+        // 3) 重复开关 + 重复细项
         _SwitchTile(
           icon: Icons.repeat,
           label: l10n.repeat,
           value: state.repeatEnabled,
           onChanged: (v) {
-            if (v) {
-              // 开启重复时，主动关闭日期，保持“重复/日期互斥”。
-              _emit(
-                context,
-                l10n,
-                state.copyWith(repeatEnabled: true, dateEnabled: false),
-              );
-            } else {
-              _emit(context, l10n, state.copyWith(repeatEnabled: false));
-            }
+            _emit(context, l10n, state.copyWith(repeatEnabled: v, dateEnabled: v ? false : state.dateEnabled));
           },
         ),
         if (state.repeatEnabled) ...[
