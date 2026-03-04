@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -87,14 +86,22 @@ class DateTimeSectionState {
     BuildContext? context,
     AppLocalizations? l10n,
   }) {
-    // 统一出口：日期与重复互斥，但允许二者都关闭。
+    // 统一业务约束（单一出口，所有状态回传都走这里）：
+    // 1) dateEnabled 与 repeatEnabled 互斥（不允许同时开启）。
+    // 2) timeEnabled == true 时，dateEnabled / repeatEnabled 至少开启一个。
+    // 3) 若 timeEnabled == true 且二者都为 false，则默认回退为 dateEnabled = true。
+    var nextDateEnabled = dateEnabled;
     var nextRepeatEnabled = repeatEnabled;
     if (dateEnabled && repeatEnabled) {
       nextRepeatEnabled = false;
     }
+    // 时间启用时，日期/重复至少开启一个；若都关闭，默认回退为日期开启。
+    if (timeEnabled && !nextDateEnabled && !nextRepeatEnabled) {
+      nextDateEnabled = true;
+    }
 
     return DateTimeSectionState(
-      dateEnabled: dateEnabled,
+      dateEnabled: nextDateEnabled,
       timeEnabled: timeEnabled,
       repeatEnabled: nextRepeatEnabled,
       date: date,
@@ -145,240 +152,424 @@ class DateTimePickerSection extends StatelessWidget {
     onChanged(next.normalized(context: context, l10n: l10n));
   }
 
-  /// 日期标题文案。
-  String _dateLabel(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return l10n.date;
+  String repeatSummary(RepeatUiConfig repeat, AppLocalizations l10n) {
+    switch (repeat.type) {
+      case RepeatUiType.daily:
+        return l10n.daily;
+      case RepeatUiType.weekly:
+        if (repeat.weekdays.isEmpty) return l10n.weekly;
+        final sorted = repeat.weekdays.toList()..sort();
+        final labels = sorted.map((day) => _weekdayShortLabel(day, l10n)).toList();
+        return '${l10n.weekly}${labels.join('、')}';
+      case RepeatUiType.monthly:
+        if (repeat.monthDays.isEmpty) return l10n.monthly;
+        final sorted = repeat.monthDays.toList()..sort();
+        return '${l10n.monthly} ${sorted.join(',')}';
+    }
+  }
+
+  String _weekdayShortLabel(int day, AppLocalizations l10n) {
+    switch (day) {
+      case 1:
+        return l10n.mondayShort;
+      case 2:
+        return l10n.tuesdayShort;
+      case 3:
+        return l10n.wednesdayShort;
+      case 4:
+        return l10n.thursdayShort;
+      case 5:
+        return l10n.fridayShort;
+      case 6:
+        return l10n.saturdayShort;
+      case 7:
+        return l10n.sundayShort;
+      default:
+        return '';
+    }
+  }
+
+  Future<void> _pickDate(BuildContext context, AppLocalizations l10n) async {
+    FocusScope.of(context).unfocus();
+    final picked = await showDatePicker(
+      context: context,
+      useRootNavigator: true,
+      initialDate: state.date,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      helpText: l10n.selectDate,
+    );
+    if (!context.mounted) return;
+    if (picked != null) {
+      _emit(context, l10n, state.copyWith(date: picked));
+    }
+  }
+
+  Future<void> _pickTime(BuildContext context, AppLocalizations l10n) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: state.time,
+      helpText: l10n.selectTime,
+    );
+    if (!context.mounted) return;
+    if (picked != null) {
+      _emit(context, l10n, state.copyWith(time: picked));
+    }
+  }
+
+  Future<void> _pickRepeat(BuildContext context, AppLocalizations l10n) async {
+    final result = await showModalBottomSheet<RepeatUiConfig>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => RepeatBottomSheet(initial: state.repeat),
+    );
+    if (!context.mounted) return;
+    if (result != null) {
+      _emit(context, l10n, state.copyWith(repeat: result));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    const disabledText = '—';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1) 日期开关 + 日期选择器
-        _SwitchTile(
+        _ToggleRow(
           icon: Icons.calendar_today,
-          label: _dateLabel(context),
-          value: state.dateEnabled,
-          onChanged: (v) {
-            _emit(context, l10n, state.copyWith(dateEnabled: v, repeatEnabled: v ? false : state.repeatEnabled));
+          enabled: state.dateEnabled,
+          valueText:
+              state.dateEnabled ? formatDate(state.date) : disabledText,
+          onToggle: () {
+            final nextEnabled = !state.dateEnabled;
+            // 规则：日期与重复互斥；若时间已开启且关闭日期会导致二者都关，
+            // 则自动开启重复，保证“时间开启时二选一至少开启”。
+            final shouldEnableRepeat = !nextEnabled &&
+                state.timeEnabled &&
+                !state.repeatEnabled;
+            _emit(
+              context,
+              l10n,
+              state.copyWith(
+                dateEnabled: nextEnabled,
+                repeatEnabled: nextEnabled
+                    ? false
+                    : (shouldEnableRepeat ? true : state.repeatEnabled),
+              ),
+            );
           },
+          onTapValue: state.dateEnabled ? () => _pickDate(context, l10n) : null,
+          trailingIcon: Icons.chevron_right,
+          borderRadius: 16,
         ),
-        if (state.dateEnabled) ...[
-          const SizedBox(height: 12),
-          _DateTile(
-            label: _dateLabel(context),
-            date: state.date,
-            onTap: () async {
-              // 点击链路调试日志：用于定位“点了没反应”。
-              if (kDebugMode) {
-                debugPrint(
-                    '[DateTimePickerSection] dateTile onTap entered, date=${state.date.toIso8601String()}');
-              }
-              FocusScope.of(context).unfocus();
-              // 先收起键盘，避免某些机型/弹层场景手势冲突。
-              if (kDebugMode) {
-                debugPrint(
-                    '[DateTimePickerSection] showDatePicker opening (useRootNavigator=true)');
-              }
-              try {
-                // 使用 root navigator，避免在局部 Navigator（如底部弹层）里弹不出来。
-                final picked = await showDatePicker(
-                  context: context,
-                  useRootNavigator: true,
-                  initialDate: state.date,
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime(2100),
-                  helpText: l10n.selectDate,
-                );
-                if (kDebugMode) {
-                  debugPrint(
-                      '[DateTimePickerSection] showDatePicker returned: ${picked?.toIso8601String() ?? 'null'}');
-                }
-                if (picked != null) {
-                  // 用户确认后才更新状态；取消返回 null，不做状态变更。
-                  _emit(context, l10n, state.copyWith(date: picked));
-                }
-              } catch (e, st) {
-                // 仅 debug 打印异常，生产环境保持静默。
-                if (kDebugMode) {
-                  debugPrint(
-                      '[DateTimePickerSection] showDatePicker threw: $e');
-                  debugPrint('$st');
-                }
-              }
-            },
-          ),
-        ],
         const SizedBox(height: 12),
-        // 2) 时间开关 + 时间选择器
-        _SwitchTile(
+        _ToggleRow(
           icon: Icons.access_time,
-          label: l10n.time,
-          value: state.timeEnabled,
-          onChanged: (v) {
-            _emit(context, l10n, state.copyWith(timeEnabled: v));
+          enabled: state.timeEnabled,
+          valueText:
+              state.timeEnabled ? formatTime(state.time) : disabledText,
+          onToggle: () {
+            final nextTimeEnabled = !state.timeEnabled;
+            // 规则：当三者全关时，点击时间开启会自动开启日期，
+            // 避免出现“仅时间开启、日期/重复都关闭”的非法组合。
+            final shouldEnableDate = nextTimeEnabled &&
+                !state.dateEnabled &&
+                !state.timeEnabled &&
+                !state.repeatEnabled;
+            _emit(
+              context,
+              l10n,
+              state.copyWith(
+                timeEnabled: nextTimeEnabled,
+                dateEnabled:
+                    shouldEnableDate ? true : state.dateEnabled,
+              ),
+            );
           },
+          onTapValue: state.timeEnabled ? () => _pickTime(context, l10n) : null,
+          trailingIcon: Icons.chevron_right,
+          borderRadius: 16,
         ),
-        if (state.timeEnabled) ...[
-          const SizedBox(height: 12),
-          _TimeTile(
-            label: l10n.time,
-            time: state.time,
-            onTap: () async {
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: state.time,
-                helpText: l10n.selectTime,
-              );
-              if (picked != null) {
-                _emit(context, l10n, state.copyWith(time: picked));
-              }
-            },
-          ),
-        ],
         const SizedBox(height: 12),
-        // 3) 重复开关 + 重复细项
-        _SwitchTile(
+        _ToggleRow(
           icon: Icons.repeat,
-          label: l10n.repeat,
-          value: state.repeatEnabled,
-          onChanged: (v) {
-            _emit(context, l10n, state.copyWith(repeatEnabled: v, dateEnabled: v ? false : state.dateEnabled));
+          enabled: state.repeatEnabled,
+          valueText:
+              state.repeatEnabled ? repeatSummary(state.repeat, l10n) : disabledText,
+          onToggle: () {
+            final nextEnabled = !state.repeatEnabled;
+            // 规则：重复与日期互斥；若时间已开启且关闭重复会导致二者都关，
+            // 则自动开启日期，保证“时间开启时二选一至少开启”。
+            final shouldEnableDate =
+                !nextEnabled && state.timeEnabled && !state.dateEnabled;
+            _emit(
+              context,
+              l10n,
+              state.copyWith(
+                repeatEnabled: nextEnabled,
+                dateEnabled: nextEnabled
+                    ? false
+                    : (shouldEnableDate ? true : state.dateEnabled),
+              ),
+            );
           },
+          onTapValue:
+              state.repeatEnabled ? () => _pickRepeat(context, l10n) : null,
+          trailingIcon: Icons.chevron_right,
+          borderRadius: 16,
         ),
-        if (state.repeatEnabled) ...[
-          const SizedBox(height: 12),
-          _RepeatPicker(
-            repeat: state.repeat,
-            onChanged: (next) =>
-                _emit(context, l10n, state.copyWith(repeat: next)),
-          ),
-        ],
       ],
     );
   }
 }
 
-class _SwitchTile extends StatelessWidget {
-  const _SwitchTile({
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
     required this.icon,
-    required this.label,
-    required this.value,
-    required this.onChanged,
+    required this.enabled,
+    required this.valueText,
+    required this.onToggle,
+    required this.onTapValue,
+    required this.trailingIcon,
+    this.borderRadius = 16,
   });
 
   final IconData icon;
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
+  final bool enabled;
+  final String valueText;
+  final VoidCallback onToggle;
+  final VoidCallback? onTapValue;
+  final IconData trailingIcon;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    // 开关行仅负责渲染，不接管业务约束。
-    // 约束由外层 DateTimeSectionState.normalized() 统一处理。
+    final dividerColor = Colors.grey.shade200;
+    final borderColor = Colors.grey.shade300;
+    final iconColor = enabled
+        ? const Color(0xFF4E8EF6)
+        // ignore: deprecated_member_use
+        : const Color(0xFF4E8EF6).withOpacity(0.35);
+    final valueTapEnabled = enabled && onTapValue != null;
+
     return Material(
       color: Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(borderRadius),
+        side: BorderSide(color: borderColor),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: Colors.grey.shade700),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
+      child: Row(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(borderRadius),
+              bottomLeft: Radius.circular(borderRadius),
+            ),
+            onTap: onToggle,
+            child: SizedBox(
+              width: 56,
+              height: 56,
+              child: Center(
+                child: Icon(icon, size: 22, color: iconColor),
+              ),
+            ),
+          ),
+          Container(width: 1, height: 56, color: dividerColor),
+          Expanded(
+            child: Opacity(
+              opacity: enabled ? 1 : 0.5,
+              child: InkWell(
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(borderRadius),
+                  bottomRight: Radius.circular(borderRadius),
+                ),
+                onTap: valueTapEnabled ? onTapValue : null,
+                child: SizedBox(
+                  height: 56,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            valueText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          trailingIcon,
+                          size: 20,
+                          color: valueTapEnabled
+                              ? Colors.grey.shade600
+                              : Colors.grey.shade400,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-            Switch(value: value, onChanged: onChanged),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _RepeatPicker extends StatelessWidget {
-  const _RepeatPicker({
-    required this.repeat,
-    required this.onChanged,
+class RepeatBottomSheet extends StatefulWidget {
+  const RepeatBottomSheet({
+    super.key,
+    required this.initial,
   });
 
-  final RepeatUiConfig repeat;
-  final ValueChanged<RepeatUiConfig> onChanged;
+  final RepeatUiConfig initial;
+
+  @override
+  State<RepeatBottomSheet> createState() => _RepeatBottomSheetState();
+}
+
+class _RepeatBottomSheetState extends State<RepeatBottomSheet> {
+  late RepeatUiConfig _draftRepeat;
+
+  @override
+  void initState() {
+    super.initState();
+    _draftRepeat = widget.initial;
+  }
+
+  void _showSelectAtLeastOneDayDialog(AppLocalizations l10n) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          content: Text(l10n.selectAtLeastOneDay),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(l10n.done),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final weekly = repeat.type == RepeatUiType.weekly;
-    final monthly = repeat.type == RepeatUiType.monthly;
+    final weekly = _draftRepeat.type == RepeatUiType.weekly;
+    final monthly = _draftRepeat.type == RepeatUiType.monthly;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 重复类型选择：每天 / 每周 / 每月。
-        Material(
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: Colors.grey.shade300),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<RepeatUiType>(
-                value: repeat.type,
-                isExpanded: true,
-                items: [
-                  DropdownMenuItem(
-                    value: RepeatUiType.daily,
-                    child: Text(l10n.daily),
-                  ),
-                  DropdownMenuItem(
-                    value: RepeatUiType.weekly,
-                    child: Text(l10n.weekly),
-                  ),
-                  DropdownMenuItem(
-                    value: RepeatUiType.monthly,
-                    child: Text(l10n.monthly),
-                  ),
-                ],
-                onChanged: (v) {
-                  if (v == null) return;
-                  // 切换类型时不强行清空其它字段，便于用户来回切换时保留输入。
-                  onChanged(repeat.copyWith(type: v));
+    return SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          16,
+          8,
+          16,
+          16 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.repeat,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<RepeatUiType>(
+              segments: [
+                ButtonSegment<RepeatUiType>(
+                  value: RepeatUiType.daily,
+                  label: Text(l10n.daily),
+                ),
+                ButtonSegment<RepeatUiType>(
+                  value: RepeatUiType.weekly,
+                  label: Text(l10n.weekly),
+                ),
+                ButtonSegment<RepeatUiType>(
+                  value: RepeatUiType.monthly,
+                  label: Text(l10n.monthly),
+                ),
+              ],
+              selected: {_draftRepeat.type},
+              showSelectedIcon: false,
+              onSelectionChanged: (next) {
+                if (next.isEmpty) return;
+                setState(() {
+                  _draftRepeat = _draftRepeat.copyWith(type: next.first);
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            if (_draftRepeat.type == RepeatUiType.daily)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Text(
+                  l10n.daily,
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
+              ),
+            if (weekly)
+              _WeeklyDaysPicker(
+                selected: _draftRepeat.weekdays,
+                onChanged: (days) {
+                  setState(() {
+                    _draftRepeat = _draftRepeat.copyWith(weekdays: days);
+                  });
                 },
               ),
+            if (monthly)
+              _MonthlyDaysInput(
+                selected: _draftRepeat.monthDays,
+                onChanged: (days) {
+                  setState(() {
+                    _draftRepeat = _draftRepeat.copyWith(monthDays: days);
+                  });
+                },
+              ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(
+                      const RepeatUiConfig(type: RepeatUiType.daily),
+                    );
+                  },
+                  child: Text(l10n.clear),
+                ),
+                const Spacer(),
+                FilledButton(
+                  onPressed: () {
+                    final needAtLeastOneDay =
+                        (_draftRepeat.type == RepeatUiType.weekly &&
+                                _draftRepeat.weekdays.isEmpty) ||
+                            (_draftRepeat.type == RepeatUiType.monthly &&
+                                _draftRepeat.monthDays.isEmpty);
+                    if (needAtLeastOneDay) {
+                      _showSelectAtLeastOneDayDialog(l10n);
+                      return;
+                    }
+                    Navigator.of(context).pop(_draftRepeat);
+                  },
+                  child: Text(l10n.done),
+                ),
+              ],
             ),
-          ),
+          ],
         ),
-        if (weekly) ...[
-          const SizedBox(height: 12),
-          _WeeklyDaysPicker(
-            selected: repeat.weekdays,
-            onChanged: (days) => onChanged(repeat.copyWith(weekdays: days)),
-          ),
-        ],
-        if (monthly) ...[
-          const SizedBox(height: 12),
-          _MonthlyDaysInput(
-            selected: repeat.monthDays,
-            onChanged: (days) => onChanged(repeat.copyWith(monthDays: days)),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }
@@ -569,136 +760,12 @@ class _MonthlyDaysInputState extends State<_MonthlyDaysInput> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+          // borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+          borderSide: const BorderSide(color: Color(0xFF89B4F9), width: 2),
         ),
       ),
       // 每次输入即时回传解析结果，外层状态保持单一事实来源。
       onChanged: (v) => widget.onChanged(_parse(v)),
-    );
-  }
-}
-
-class _DateTile extends StatelessWidget {
-  const _DateTile({
-    required this.label,
-    required this.date,
-    required this.onTap,
-  });
-
-  final String label;
-  final DateTime date;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () {
-          // 点击命中日志：用于区分“未命中 InkWell”与“命中后弹窗失败”。
-          if (kDebugMode) {
-            debugPrint('[DateTimePickerSection] _DateTile InkWell tapped');
-          }
-          onTap();
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              Icon(Icons.calendar_today, size: 18, color: Colors.grey.shade700),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      DateTimePickerSection.formatDate(date),
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TimeTile extends StatelessWidget {
-  const _TimeTile({
-    required this.label,
-    required this.time,
-    required this.onTap,
-  });
-
-  final String label;
-  final TimeOfDay time;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    // 时间选择展示组件，逻辑由外层回调处理。
-    return Material(
-      color: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          child: Row(
-            children: [
-              Icon(Icons.access_time, size: 18, color: Colors.grey.shade700),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    Text(
-                      DateTimePickerSection.formatTime(time),
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_drop_down, color: Colors.grey.shade600),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

@@ -94,6 +94,7 @@
   "save": "Save",
   "saveDraft": "Save draft",
   "pleaseEnterTitle": "Please enter a title",
+  "selectAtLeastOneDay": "Select at least one day",
   "pleaseFillActionOrSelectNone": "Please fill in the action content or select \"No action\"",
   "actionOpened": "Opened {action}",
   "@actionOpened": {

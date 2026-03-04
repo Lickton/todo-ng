@@ -280,6 +280,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pleaseEnterTitle => 'Please enter a title';
 
   @override
+  String get selectAtLeastOneDay => 'Select at least one day';
+
+  @override
   String get pleaseFillActionOrSelectNone =>
       'Please fill in the action content or select \"No action\"';
 

@@ -275,6 +275,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pleaseEnterTitle => '请输入标题';
 
   @override
+  String get selectAtLeastOneDay => '至少选择一天';
+
+  @override
   String get pleaseFillActionOrSelectNone => '请填写动作内容或选择「无动作」';
 
   @override

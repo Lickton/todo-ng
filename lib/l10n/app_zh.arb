@@ -94,6 +94,7 @@
   "save": "保存",
   "saveDraft": "暂存",
   "pleaseEnterTitle": "请输入标题",
+  "selectAtLeastOneDay": "至少选择一天",
   "pleaseFillActionOrSelectNone": "请填写动作内容或选择「无动作」",
   "actionOpened": "已打开 {action}",
   "@actionOpened": {

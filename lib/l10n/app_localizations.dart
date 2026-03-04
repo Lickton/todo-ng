@@ -614,6 +614,12 @@ abstract class AppLocalizations {
   /// **'Please enter a title'**
   String get pleaseEnterTitle;
 
+  /// No description provided for @selectAtLeastOneDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Select at least one day'**
+  String get selectAtLeastOneDay;
+
   /// No description provided for @pleaseFillActionOrSelectNone.
   ///
   /// In en, this message translates to:
